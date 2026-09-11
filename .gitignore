@@ -11,7 +11,9 @@ client/.env
 
 # Production build
 client/dist/
+client/public/
 dist/
+public/
 build/
 
 # Logs
