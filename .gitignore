@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment files
+.env
+server/.env
+client/.env
+*.env.local
+
+# Production build
+client/dist/
+dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE & editor directories
+.vscode/
+.idea/
+
+# Database files
+server/data/
+
+# Temporary / Scratch files
+scratch/
+
+# Agent directory
+.agents/
