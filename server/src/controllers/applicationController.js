@@ -559,17 +559,30 @@ exports.deleteApplication = async (req, res) => {
         { $set: { roommate: null } }
       );
 
-      // 3. Reset student User record
-      await User.findOneAndUpdate(
-        { userId: studentIdClean },
-        {
-          room: '',
-          seatNo: '',
-          allocationStatus: 'Pending Provost Approval',
-          unit: `${application.preferredHall || 'Padma Residential Hall'} (Seat Allocation Pending Provost Approval)`,
-          roommate: null,
-        }
-      );
+      // 3. Delete student User record completely from Database
+      await User.deleteMany({
+        $or: [
+          { userId: studentIdClean },
+          ...(application.email ? [{ email: application.email.trim().toLowerCase() }] : []),
+        ],
+      });
+
+      // 4. Delete student operational records
+      const GatePass = require('../models/GatePass');
+      const Complaint = require('../models/Complaint');
+      const { MealBooking } = require('../models/Meal');
+      const Payment = require('../models/Payment');
+      const RoomTransferRequest = require('../models/RoomTransferRequest');
+      const RoommateMatch = require('../models/RoommateMatch');
+
+      await GatePass.deleteMany({ studentId: studentIdClean });
+      await Complaint.deleteMany({ studentId: studentIdClean });
+      await MealBooking.deleteMany({ studentId: studentIdClean });
+      await Payment.deleteMany({ studentId: studentIdClean });
+      await RoomTransferRequest.deleteMany({ studentId: studentIdClean });
+      await RoommateMatch.deleteMany({
+        $or: [{ student1Id: studentIdClean }, { student2Id: studentIdClean }],
+      });
     }
 
     await Application.findByIdAndDelete(req.params.id);

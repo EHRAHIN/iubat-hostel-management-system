@@ -8,10 +8,72 @@ const Notice = require('../models/Notice');
 const { Menu, MealBooking } = require('../models/Meal');
 const Payment = require('../models/Payment');
 
+const ensureAllRoomsExist = async () => {
+  const configs = [
+    { hallId: 'padma', hallName: 'Padma Residential Hall' },
+  ];
+
+  for (const hall of configs) {
+    for (const floor of [1, 2]) {
+      for (let i = 1; i <= 8; i++) {
+        const roomNumber = `${floor}0${i}`;
+        const existing = await Room.findOne({ hallId: hall.hallId, roomNumber });
+        if (!existing) {
+          let roomType = 'Double Shared Room';
+          let capacity = 2;
+          let monthlyRent = 2200;
+          let hasAC = i <= 4;
+          let hasBalcony = true;
+
+          if (i === 5) {
+            roomType = 'Single Deluxe Room';
+            capacity = 1;
+            monthlyRent = 3500;
+            hasAC = true;
+          } else if (i === 7 || (hall.hallId === 'padma' && i === 8)) {
+            roomType = '4-Bed Standard Room';
+            capacity = 4;
+            monthlyRent = 1400;
+            hasAC = false;
+          }
+
+          const beds = [];
+          const labels = ['Bed A', 'Bed B', 'Bed C', 'Bed D'];
+          for (let b = 0; b < capacity; b++) {
+            beds.push({
+              bedLabel: labels[b],
+              isOccupied: false,
+              studentId: null,
+              studentName: null,
+              studentDept: null,
+            });
+          }
+
+          await Room.create({
+            roomNumber,
+            hallId: hall.hallId,
+            hallName: hall.hallName,
+            floor,
+            roomType,
+            capacity,
+            occupiedCount: 0,
+            hasAC,
+            hasBalcony,
+            monthlyRent,
+            status: 'Available',
+            beds,
+          });
+        }
+      }
+    }
+  }
+};
+
 // Internal seed function (Preserves existing data on restart)
 const runSeedData = async (forceReset = false) => {
   const existingUserCount = await User.countDocuments();
   if (!forceReset && existingUserCount > 0) {
+    await ensureAllRoomsExist();
     const [users, halls, rooms, notices] = await Promise.all([
       User.countDocuments(),
       Hall.countDocuments(),
@@ -154,34 +216,20 @@ const runSeedData = async (forceReset = false) => {
     },
   ]);
 
-  // 3. Insert Halls (2 Official Residential Halls: Padma Male & Meghna Female)
+  // 3. Insert Hall (Padma Residential Hall • 2 Floors)
   const halls = await Hall.insertMany([
     {
       hallId: 'padma',
-      name: 'Padma Residential Hall (Male)',
-      gender: 'Male',
+      name: 'Padma Residential Hall',
+      gender: 'Campus Residence',
       floors: 2,
       totalRooms: 16,
-      totalBeds: 32,
+      totalBeds: 40,
       occupiedBeds: 2,
       status: 'Active',
       provostName: 'Prof. Dr. Monirul Islam',
       tutorsAssigned: 2,
       amenities: ['High-Speed Wi-Fi', '24/7 Security', 'Mess Dining', 'Common Room', 'Generator Backup'],
-      monthlyBaseRent: { single: 3500, double: 2200, fourBed: 1400 },
-    },
-    {
-      hallId: 'meghna',
-      name: 'Meghna Residential Hall (Female)',
-      gender: 'Female',
-      floors: 2,
-      totalRooms: 16,
-      totalBeds: 32,
-      occupiedBeds: 0,
-      status: 'Active',
-      provostName: 'Prof. Dr. Monirul Islam',
-      tutorsAssigned: 2,
-      amenities: ['High-Speed Wi-Fi', 'Biometric Gate Access', 'Mess Dining', 'Reading Lounge', '24/7 CCTV'],
       monthlyBaseRent: { single: 3500, double: 2200, fourBed: 1400 },
     },
   ]);
@@ -466,300 +514,22 @@ const runSeedData = async (forceReset = false) => {
         { bedLabel: 'Bed B', isOccupied: false },
       ],
     },
-
-    // --- Meghna Hall (Female) - Floor 1 ---
-    {
-      roomNumber: '101',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '102',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '103',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '104',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '105',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: 'Single Deluxe Room',
-      capacity: 1,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 3500,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '106',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: false,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '107',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: '4-Bed Standard Room',
-      capacity: 4,
-      occupiedCount: 0,
-      hasAC: false,
-      hasBalcony: true,
-      monthlyRent: 1400,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-        { bedLabel: 'Bed C', isOccupied: false },
-        { bedLabel: 'Bed D', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '108',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 1,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: false,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-
-    // --- Meghna Hall (Female) - Floor 2 ---
-    {
-      roomNumber: '201',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '202',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '203',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '204',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '205',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: 'Single Deluxe Room',
-      capacity: 1,
-      occupiedCount: 0,
-      hasAC: true,
-      hasBalcony: true,
-      monthlyRent: 3500,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '206',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: false,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '207',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: '4-Bed Standard Room',
-      capacity: 4,
-      occupiedCount: 0,
-      hasAC: false,
-      hasBalcony: true,
-      monthlyRent: 1400,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-        { bedLabel: 'Bed C', isOccupied: false },
-        { bedLabel: 'Bed D', isOccupied: false },
-      ],
-    },
-    {
-      roomNumber: '208',
-      hallId: 'meghna',
-      hallName: 'Meghna Residential Hall (Female)',
-      floor: 2,
-      roomType: 'Double Shared Room',
-      capacity: 2,
-      occupiedCount: 0,
-      hasAC: false,
-      hasBalcony: true,
-      monthlyRent: 2200,
-      status: 'Available',
-      beds: [
-        { bedLabel: 'Bed A', isOccupied: false },
-        { bedLabel: 'Bed B', isOccupied: false },
-      ],
-    },
   ]);
 
   // 5. Insert Notices
   const notices = await Notice.insertMany([
     {
-      title: 'Spring 2026 Residential Hall Seat Application Schedule and Deadline',
-      date: 'February 18, 2026',
+      title: 'Fall 2026 Residential Hall Seat Application Schedule and Deadline',
+      date: 'September 12, 2026',
       category: 'Allocation',
       refNo: 'IUBAT/RO/2026/042',
-      summary: 'All eligible students seeking hostel accommodation for the upcoming semester must complete online submissions before March 15, 2026.',
+      summary: 'All eligible students seeking hostel accommodation for the upcoming semester must complete online submissions before September 25, 2026.',
       authority: 'Office of the Provost',
       isPinned: true,
     },
     {
       title: 'Standard Operating Procedure: Night Attendance and 10:00 PM Curfew Timing',
-      date: 'February 12, 2026',
+      date: 'September 08, 2026',
       category: 'Administration',
       refNo: 'IUBAT/HD/2026/019',
       summary: 'Floor teachers will conduct scheduled digital roll call at 10:00 PM daily. Unapproved absences will generate automatic guardian alerts.',
@@ -767,8 +537,8 @@ const runSeedData = async (forceReset = false) => {
       isPinned: false,
     },
     {
-      title: 'Monthly Mess Billing and Dining Token Clearance for March 2026',
-      date: 'February 05, 2026',
+      title: 'Monthly Mess Billing and Dining Token Clearance for September 2026',
+      date: 'September 02, 2026',
       category: 'Dining',
       refNo: 'IUBAT/MC/2026/008',
       summary: 'Students may recharge dining allowances and verify monthly token counts via the Student Portal by the 5th of every month.',
@@ -777,7 +547,7 @@ const runSeedData = async (forceReset = false) => {
     },
     {
       title: 'Scheduled Network Maintenance and High-Speed LAN Upgrade in Padma Hall',
-      date: 'January 28, 2026',
+      date: 'August 28, 2026',
       category: 'Maintenance',
       refNo: 'IUBAT/IT/2026/011',
       summary: 'IT infrastructure maintenance will take place on Saturday between 09:00 AM and 01:00 PM. Minimal internet disruption is expected.',
@@ -817,7 +587,7 @@ const runSeedData = async (forceReset = false) => {
       studentId: '221003481',
       department: 'BBA',
       cgpa: 3.75,
-      preferredHall: 'Meghna Residential Hall',
+      preferredHall: 'Padma Residential Hall',
       preferredRoom: 'Double Shared Room',
       status: 'Provost Approved',
     },
@@ -835,8 +605,8 @@ const runSeedData = async (forceReset = false) => {
       hall: 'Padma Residential Hall',
       room: 'Room 304',
       passType: 'Weekend Out-Pass',
-      fromDate: '2026-03-01',
-      toDate: '2026-03-03',
+      fromDate: '2026-09-18',
+      toDate: '2026-09-20',
       destination: 'Uttara Sector 4, Dhaka',
       emergencyContact: '+880 1711 987654',
       reason: 'Family visit over the weekend.',
@@ -869,7 +639,7 @@ const runSeedData = async (forceReset = false) => {
       studentId: '221004128',
       studentName: 'Tanvir Hasan',
       feeType: 'Seat Rent',
-      month: 'February 2026',
+      month: 'August 2026',
       amountBDT: 2200,
       status: 'Paid',
       paymentMethod: 'bKash',
@@ -880,7 +650,7 @@ const runSeedData = async (forceReset = false) => {
       studentId: '221004128',
       studentName: 'Tanvir Hasan',
       feeType: 'Mess Advance',
-      month: 'February 2026',
+      month: 'September 2026',
       amountBDT: 3500,
       status: 'Paid',
       paymentMethod: 'Nagad',

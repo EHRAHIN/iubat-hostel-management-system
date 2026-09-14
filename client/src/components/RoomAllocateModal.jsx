@@ -89,18 +89,14 @@ export default function RoomAllocateModal({
   // Track initialization so background polling never resets the user's manual selection
   const initializedAppIdRef = useRef(null);
 
-  // 1. Identify Target Hall
-  const targetHallId = useMemo(() => {
-    const hall = (application?.targetHall || application?.preferredHall || 'padma').toLowerCase();
-    return hall.includes('meghna') ? 'meghna' : 'padma';
-  }, [application]);
+  // 1. Identify Target Hall (Padma Hall)
+  const targetHallId = 'padma';
 
   // 2. Filter & Deduplicate rooms strictly for this hall
   const hallFilteredRooms = useMemo(() => {
     const byHall = (roomsList || []).filter((r) => {
-      if (r.hallId) return r.hallId.toLowerCase() === targetHallId;
-      if (r.hallName) return r.hallName.toLowerCase().includes(targetHallId);
-      return true;
+      const hName = (r.hallName || r.hallId || '').toLowerCase();
+      return !hName.includes('meghna');
     });
 
     // Deduplicate by roomNumber so each room number appears exactly once
@@ -137,18 +133,33 @@ export default function RoomAllocateModal({
       const initialFloorNum = parseInt(initialFloorStr.replace(/\D/g, '')) || 1;
       setSelectedFloor(initialFloorNum);
 
-      // Determine recommended room number
+      // Determine smart initial room on that floor
+      const roomsOnInitialFloor = hallFilteredRooms.filter((r) => r.floor === initialFloorNum);
       const recRoomClean = (application.recommendedRoom || application.preferredRoomNo || '').replace(/Room\s*/i, '').trim();
-      setSelectedRoomNumber(recRoomClean || '101');
 
-      // Determine recommended bed
-      const recBed = application.recommendedBed || application.preferredBed || 'Bed B';
-      setSelectedBedLabel(recBed);
+      const matchedRec = roomsOnInitialFloor.find((r) => r.roomNumber === recRoomClean && (r.capacity - (r.occupiedCount || 0)) > 0);
+      const prefType = (application.preferredRoom || application.roomType || '').toLowerCase();
+      const matchedType = roomsOnInitialFloor.find((r) => {
+        const free = r.capacity - (r.occupiedCount || 0);
+        if (free <= 0) return false;
+        if (prefType.includes('single') && r.capacity === 1) return true;
+        if (prefType.includes('double') && r.capacity === 2) return true;
+        if ((prefType.includes('4-bed') || prefType.includes('four')) && r.capacity === 4) return true;
+        return false;
+      });
+      const firstAvailable = roomsOnInitialFloor.find((r) => (r.capacity - (r.occupiedCount || 0)) > 0);
+      const chosenRoom = matchedRec || matchedType || firstAvailable || roomsOnInitialFloor[0];
+
+      if (chosenRoom) {
+        setSelectedRoomNumber(chosenRoom.roomNumber);
+        const freeBed = chosenRoom.beds?.find((b) => !b.isOccupied);
+        setSelectedBedLabel(freeBed ? freeBed.bedLabel : (chosenRoom.beds?.[0]?.bedLabel || 'Bed A'));
+      }
 
       setRemarks('Officially allocated by Provost Office upon Smart AI lifestyle compatibility review.');
       setErrorMsg('');
     }
-  }, [isOpen, application?.id]);
+  }, [isOpen, application?.id, hallFilteredRooms]);
 
   if (!isOpen || !application) return null;
 
@@ -230,10 +241,21 @@ export default function RoomAllocateModal({
     setSelectedFloor(floorNum);
     const roomsOnNewFloor = hallFilteredRooms.filter((r) => r.floor === floorNum);
     if (roomsOnNewFloor.length > 0) {
-      const firstRoom = roomsOnNewFloor[0];
-      setSelectedRoomNumber(firstRoom.roomNumber);
-      const freeBed = firstRoom.beds?.find((b) => !b.isOccupied);
-      setSelectedBedLabel(freeBed ? freeBed.bedLabel : (firstRoom.beds?.[0]?.bedLabel || 'Bed A'));
+      const prefType = (application?.preferredRoom || application?.roomType || '').toLowerCase();
+      const matchedType = roomsOnNewFloor.find((r) => {
+        const free = r.capacity - (r.occupiedCount || 0);
+        if (free <= 0) return false;
+        if (prefType.includes('single') && r.capacity === 1) return true;
+        if (prefType.includes('double') && r.capacity === 2) return true;
+        if ((prefType.includes('4-bed') || prefType.includes('four')) && r.capacity === 4) return true;
+        return false;
+      });
+      const firstAvailable = roomsOnNewFloor.find((r) => (r.capacity - (r.occupiedCount || 0)) > 0);
+      const targetRoom = matchedType || firstAvailable || roomsOnNewFloor[0];
+
+      setSelectedRoomNumber(targetRoom.roomNumber);
+      const freeBed = targetRoom.beds?.find((b) => !b.isOccupied);
+      setSelectedBedLabel(freeBed ? freeBed.bedLabel : (targetRoom.beds?.[0]?.bedLabel || 'Bed A'));
     } else {
       setSelectedRoomNumber('');
       setSelectedBedLabel('Bed A');
@@ -304,7 +326,7 @@ export default function RoomAllocateModal({
             <div>
               <h2 className="text-sm sm:text-base font-bold tracking-tight">Manual Room & Bed Allocation</h2>
               <p className="text-[11px] text-emerald-200/90 font-mono">
-                Provost Desk • {targetHallId === 'meghna' ? 'Meghna Residential Hall (Female)' : 'Padma Residential Hall (Male)'}
+                Provost Desk • Padma Residential Hall
               </p>
             </div>
           </div>
@@ -426,7 +448,7 @@ export default function RoomAllocateModal({
                 No rooms configured on Floor {selectedFloor}.
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-40 overflow-y-auto p-0.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-60 overflow-y-auto p-0.5">
                 {roomsOnFloor.map((rm) => {
                   const freeCount = rm.capacity - (rm.occupiedCount || 0);
                   const isSelected = selectedRoomNumber === rm.roomNumber;

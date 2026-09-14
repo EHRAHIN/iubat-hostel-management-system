@@ -1,5 +1,12 @@
 const User = require('../models/User');
 const Application = require('../models/Application');
+const Room = require('../models/Room');
+const GatePass = require('../models/GatePass');
+const Complaint = require('../models/Complaint');
+const { MealBooking } = require('../models/Meal');
+const Payment = require('../models/Payment');
+const RoomTransferRequest = require('../models/RoomTransferRequest');
+const RoommateMatch = require('../models/RoommateMatch');
 
 // @desc    Register a new student account (Only students self-register; Staff & Teachers are provisioned by Provost)
 // @route   POST /api/auth/register
@@ -9,6 +16,13 @@ exports.register = async (req, res) => {
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Full Name, Institutional/Personal Email, and Password are required.' });
+    }
+
+    if (!guardianName || !guardianName.trim() || !guardianPhone || !guardianPhone.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Guardian Name and Guardian Phone Number are mandatory fields during registration.',
+      });
     }
 
     const userEmail = email.toLowerCase().trim();
@@ -29,12 +43,11 @@ exports.register = async (req, res) => {
       });
     }
 
-    const isMeghna = preferredHall && preferredHall.toLowerCase().includes('meghna');
-    const selectedHallName = isMeghna ? 'Meghna Residential Hall (Female)' : 'Padma Residential Hall (Male)';
+    const selectedHallName = 'Padma Residential Hall';
     const assignedFloor = (preferredHall || '').includes('Floor 2') ? 'Floor 2' : 'Floor 1';
-    const assignedTutor = isMeghna
-      ? (assignedFloor === 'Floor 2' ? 'Prof. Farhana Yasmin (Meghna Floor 2 House Tutor)' : 'Dr. Nusrat Jahan (Meghna Floor 1 House Tutor)')
-      : (assignedFloor === 'Floor 2' ? 'Prof. Anisur Rahman (Padma Floor 2 House Tutor)' : 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)');
+    const assignedTutor = assignedFloor === 'Floor 2'
+      ? 'Prof. Anisur Rahman (Padma Floor 2 House Tutor)'
+      : 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)';
 
     // Process Room Capacity Preference: 1 Person (Single), 2 Persons (Double), or 4 Persons (4-Bed)
     const rawCapacity = Number(req.body.preferredCapacity);
@@ -92,6 +105,7 @@ exports.register = async (req, res) => {
       preferredFloor: assignedFloor,
       preferredRoom: roomType,
       preferredCapacity: capacity,
+      guardianName: guardianName.trim(),
       guardianPhone: guardianPhone ? guardianPhone.trim() : '',
       status: 'Pending Provost Approval',
       preferences: defaultPrefs,
@@ -160,16 +174,16 @@ exports.login = async (req, res) => {
     } else if (['admin', 'superadmin', 'super_admin', 'root', 'rootit', 'super-admin', 'itadmin'].includes(lowerKey)) {
       effectiveKey = 'admin.it@iubat.edu';
       targetRole = 'admin';
-    } else if (['tutor1', 'padma-tutor1', 'padma-tutor', 'floorteacher@iubat.edu', 'floorteacher'].includes(lowerKey)) {
+    } else if (['tutor1', 'padma-tutor1', 'padma-tutor', 'floorteacher@iubat.edu', 'floorteacher', 'tutor', 'tutor@iubat.edu'].includes(lowerKey)) {
       effectiveKey = 'tutor.padma1@iubat.edu';
       targetRole = 'teacher';
-    } else if (['tutor2', 'padma-tutor2'].includes(lowerKey)) {
+    } else if (['tutor2', 'padma-tutor2', 'anisur'].includes(lowerKey)) {
       effectiveKey = 'tutor.padma2@iubat.edu';
       targetRole = 'teacher';
-    } else if (['padma-maintenance', 'maintenance@iubat.edu'].includes(lowerKey)) {
+    } else if (['padma-maintenance', 'maintenance@iubat.edu', 'maintenance', 'staff-maintenance'].includes(lowerKey)) {
       effectiveKey = 'maintenance.padma@iubat.edu';
       targetRole = 'staff';
-    } else if (['padma-dining', 'dining@iubat.edu'].includes(lowerKey)) {
+    } else if (['padma-dining', 'dining@iubat.edu', 'dining', 'mess', 'staff-dining'].includes(lowerKey)) {
       effectiveKey = 'dining.padma@iubat.edu';
       targetRole = 'staff';
     }
@@ -211,9 +225,9 @@ exports.login = async (req, res) => {
         ? student.guardianName.trim()
         : `Guardian of ${student.name}`;
 
-      const tutorName = student.floorTeacher || (student.hall?.includes('Meghna') 
-        ? (student.floor?.includes('2') ? 'Prof. Farhana Yasmin (Meghna Floor 2 House Tutor)' : 'Dr. Nusrat Jahan (Meghna Floor 1 House Tutor)') 
-        : (student.floor?.includes('2') ? 'Prof. Anisur Rahman (Padma Floor 2 House Tutor)' : 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)'));
+      const tutorName = student.floorTeacher || (student.floor?.includes('2') 
+        ? 'Prof. Anisur Rahman (Padma Floor 2 House Tutor)' 
+        : 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)');
 
       return res.status(200).json({
         success: true,
@@ -255,6 +269,83 @@ exports.login = async (req, res) => {
           { userId: new RegExp(searchKey, 'i') },
         ],
       });
+    }
+
+    // Auto-provision standard institutional accounts if missing
+    if (!user) {
+      if (lowerKey.includes('dining')) {
+        user = await User.findOneAndUpdate(
+          { email: 'dining.padma@iubat.edu' },
+          {
+            userId: 'STF-DIN-PAD-001',
+            name: 'Md. Faruk Hossain',
+            email: 'dining.padma@iubat.edu',
+            password: '123456',
+            role: 'staff',
+            department: 'Padma Hall Dining Staff (Daily Bazar, Kitchen & Meal Token Approval)',
+            hall: 'Padma Residential Hall',
+            floor: 'Dining Wing',
+            phone: '+880 1711 889900',
+            unit: 'Padma Dining Division (Daily Bazar Requisition, Cooking & Token Clearance)',
+            status: 'Active',
+          },
+          { upsert: true, new: true }
+        );
+      } else if (lowerKey.includes('maintenance')) {
+        user = await User.findOneAndUpdate(
+          { email: 'maintenance.padma@iubat.edu' },
+          {
+            userId: 'STF-MNT-PAD-001',
+            name: 'Md. Kalam Hossain',
+            email: 'maintenance.padma@iubat.edu',
+            password: '123456',
+            role: 'staff',
+            department: 'Padma Hall Maintenance Staff (Electricity, Net, Plumbing, Furniture)',
+            hall: 'Padma Residential Hall',
+            floor: 'All Floors',
+            phone: '+880 1552 334455',
+            unit: 'Padma Maintenance Division (Electricity, Net/LAN, Plumbing, Furniture)',
+            status: 'Active',
+          },
+          { upsert: true, new: true }
+        );
+      } else if (lowerKey.includes('tutor.padma2') || lowerKey.includes('anisur') || lowerKey.includes('tutor2')) {
+        user = await User.findOneAndUpdate(
+          { email: 'tutor.padma2@iubat.edu' },
+          {
+            userId: 'TUT-PAD-002',
+            name: 'Prof. Anisur Rahman',
+            email: 'tutor.padma2@iubat.edu',
+            password: '123456',
+            role: 'teacher',
+            department: 'Department of Electrical & Electronic Engineering (EEE)',
+            hall: 'Padma Residential Hall',
+            floor: 'Floor 2',
+            phone: '+880 1819 234567',
+            unit: 'Padma Residential Hall (Floor 2 House Tutor)',
+            status: 'Active',
+          },
+          { upsert: true, new: true }
+        );
+      } else if (lowerKey.includes('tutor') || lowerKey.includes('floorteacher') || lowerKey.includes('tariqul')) {
+        user = await User.findOneAndUpdate(
+          { email: 'tutor.padma1@iubat.edu' },
+          {
+            userId: 'TUT-PAD-001',
+            name: 'Dr. Tariqul Islam',
+            email: 'tutor.padma1@iubat.edu',
+            password: '123456',
+            role: 'teacher',
+            department: 'Department of Computer Science & Engineering (CSE)',
+            hall: 'Padma Residential Hall',
+            floor: 'Floor 1',
+            phone: '+880 1819 123456',
+            unit: 'Padma Residential Hall (Floor 1 House Tutor)',
+            status: 'Active',
+          },
+          { upsert: true, new: true }
+        );
+      }
     }
 
     if (!user) {
@@ -385,8 +476,19 @@ exports.provisionStaffOrTeacher = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name and Email are required.' });
     }
 
-    const assignedRole = role === 'staff' ? 'staff' : 'teacher';
-    const officialId = userId && userId.trim() ? userId.trim() : (assignedRole === 'teacher' ? `TUT-${Math.floor(100 + Math.random() * 900)}` : `STF-${Math.floor(100 + Math.random() * 900)}`);
+    const roleNorm = (role || 'student').toLowerCase();
+    const validRoles = ['student', 'teacher', 'provost', 'staff', 'admin', 'parent'];
+    const assignedRole = validRoles.includes(roleNorm) ? roleNorm : 'student';
+
+    let defaultIdPrefix = 'USR';
+    if (assignedRole === 'student') defaultIdPrefix = 'STD';
+    else if (assignedRole === 'teacher') defaultIdPrefix = 'TUT';
+    else if (assignedRole === 'provost') defaultIdPrefix = 'PRV';
+    else if (assignedRole === 'staff') defaultIdPrefix = 'STF';
+    else if (assignedRole === 'parent') defaultIdPrefix = 'PAR';
+    else if (assignedRole === 'admin') defaultIdPrefix = 'ADM';
+
+    const officialId = userId && userId.trim() ? userId.trim() : (assignedRole === 'student' ? `22100${Math.floor(1000 + Math.random() * 9000)}` : `${defaultIdPrefix}-${Math.floor(100 + Math.random() * 900)}`);
     const cleanEmail = email.toLowerCase().trim();
 
     // Check existing
@@ -410,17 +512,17 @@ exports.provisionStaffOrTeacher = async (req, res) => {
       email: cleanEmail,
       password: password || '123456',
       role: assignedRole,
-      department: department || (assignedRole === 'teacher' ? 'CSE' : 'Estate & Facilities'),
+      department: department || (assignedRole === 'teacher' ? 'CSE' : (assignedRole === 'student' ? 'CSE' : 'Central Administration')),
       phone: phone || '+880 1711 000000',
       hall: hall || 'Padma Residential Hall (Male)',
       floor: floor || 'Floor 1',
-      unit: unit || `${hall || 'Padma Hall'} ${floor || 'Floor 1'} (${assignedRole === 'teacher' ? 'House Tutor' : 'Operations'})`,
+      unit: unit || `${hall || 'Padma Hall'} ${floor || 'Floor 1'} (${assignedRole})`,
       status: 'Active',
     });
 
     res.status(201).json({
       success: true,
-      message: `Account for ${newUser.name} (${newUser.userId}) successfully provisioned by Provost Office!`,
+      message: `Account for ${newUser.name} (${newUser.userId} - ${assignedRole.toUpperCase()}) successfully provisioned and active!`,
       data: newUser,
     });
   } catch (error) {
@@ -461,23 +563,122 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// @desc    Delete / Deprovision user
+// @desc    Delete / Deprovision user permanently from Database
 // @route   DELETE /api/users/:id
 exports.deleteUser = async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = req.params.id ? req.params.id.trim() : '';
+    if (!id) return res.status(400).json({ success: false, message: 'User ID is required.' });
+
     let user;
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      user = await User.findByIdAndDelete(id);
+      user = await User.findById(id);
     }
     if (!user) {
-      user = await User.findOneAndDelete({ userId: id });
+      user = await User.findOne({ userId: id });
     }
     if (!user) {
-      user = await User.findOneAndDelete({ email: id });
+      user = await User.findOne({ email: id.toLowerCase() });
     }
-    if (!user) return res.status(404).json({ success: false, message: 'User not found in system.' });
-    res.status(200).json({ success: true, message: `Account for ${user.name} (${user.userId || user.email}) removed permanently.` });
+
+    // If user not found in User collection, check if an orphan application exists with this ID
+    if (!user) {
+      const orphanApp = await Application.findOne({
+        $or: [
+          ...(id.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: id }] : []),
+          { studentId: id },
+          { email: id.toLowerCase() },
+        ],
+      });
+
+      if (orphanApp) {
+        const studentIdClean = orphanApp.studentId ? orphanApp.studentId.trim() : '';
+        if (studentIdClean) {
+          await Room.updateMany(
+            { 'beds.studentId': studentIdClean },
+            {
+              $set: {
+                'beds.$[elem].isOccupied': false,
+                'beds.$[elem].studentId': null,
+                'beds.$[elem].studentName': null,
+                'beds.$[elem].studentDept': null,
+              },
+            },
+            { arrayFilters: [{ 'elem.studentId': studentIdClean }] }
+          );
+        }
+        await Application.findByIdAndDelete(orphanApp._id);
+        return res.status(200).json({
+          success: true,
+          message: `Record for application #${orphanApp.applicationRef} (${orphanApp.studentName}) removed from database.`,
+        });
+      }
+
+      return res.status(404).json({ success: false, message: 'User not found in system database.' });
+    }
+
+    const userIdClean = user.userId ? user.userId.trim() : '';
+    const userEmailClean = user.email ? user.email.trim().toLowerCase() : '';
+
+    // If user is a student, cascade clean all university residential dependencies
+    if (user.role === 'student') {
+      // 1. Free allocated bed in Room collection
+      if (userIdClean) {
+        await Room.updateMany(
+          { 'beds.studentId': userIdClean },
+          {
+            $set: {
+              'beds.$[elem].isOccupied': false,
+              'beds.$[elem].studentId': null,
+              'beds.$[elem].studentName': null,
+              'beds.$[elem].studentDept': null,
+            },
+          },
+          { arrayFilters: [{ 'elem.studentId': userIdClean }] }
+        );
+
+        // Recalculate room occupancy & status for all rooms
+        const allRooms = await Room.find();
+        for (const r of allRooms) {
+          const occ = r.beds.filter((b) => b.isOccupied).length;
+          r.occupiedCount = occ;
+          r.status = occ >= r.capacity ? 'Fully Occupied' : occ > 0 ? 'Partially Occupied' : 'Available';
+          await r.save();
+        }
+
+        // 2. Clear roommate references pointing to this student
+        await User.updateMany(
+          { 'roommate.userId': userIdClean },
+          { $set: { roommate: null } }
+        );
+
+        // 3. Delete student Application records
+        await Application.deleteMany({
+          $or: [
+            { studentId: userIdClean },
+            ...(userEmailClean ? [{ email: userEmailClean }] : []),
+          ],
+        });
+
+        // 4. Delete related student operational records
+        await GatePass.deleteMany({ studentId: userIdClean });
+        await Complaint.deleteMany({ studentId: userIdClean });
+        await MealBooking.deleteMany({ studentId: userIdClean });
+        await Payment.deleteMany({ studentId: userIdClean });
+        await RoomTransferRequest.deleteMany({ studentId: userIdClean });
+        await RoommateMatch.deleteMany({
+          $or: [{ student1Id: userIdClean }, { student2Id: userIdClean }],
+        });
+      }
+    }
+
+    // 5. Delete User record completely from Database
+    await User.findByIdAndDelete(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: `Account for ${user.name} (${user.userId || user.email}, ${user.role}) permanently deleted from database.`,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

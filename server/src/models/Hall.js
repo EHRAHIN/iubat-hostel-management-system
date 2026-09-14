@@ -16,7 +16,7 @@ const hallSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ['Male', 'Female', 'Grad / Research', 'Co-Ed'],
+      enum: ['Male', 'Female', 'Grad / Research', 'Co-Ed', 'Campus Residence'],
       required: true,
     },
     floors: {

@@ -23,6 +23,7 @@ export default function ApplySeatModal({
     preferredRoom: preselectedRoomType || 'Double Shared Room',
     preferredRoomNo: preselectedRoomNo || '',
     preferredBed: preselectedBed || '',
+    guardianName: '',
     guardianPhone: '',
     homeAddress: '',
   });
@@ -58,6 +59,11 @@ export default function ApplySeatModal({
     e.preventDefault();
     if (!formData.fullName.trim() || !formData.studentId.trim() || !formData.cgpa) {
       setErrorMsg('Please fill in your Full Name, Student ID, and CGPA.');
+      return;
+    }
+
+    if (!formData.guardianName?.trim() || !formData.guardianPhone?.trim()) {
+      setErrorMsg('Guardian Name and Guardian Mobile Phone are mandatory fields.');
       return;
     }
 
@@ -100,7 +106,7 @@ export default function ApplySeatModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 md:p-8 shadow-2xl">
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 md:p-8 shadow-2xl">
         
         {/* Header */}
         <div className="flex items-start justify-between pb-4 mb-4 border-b border-slate-100 dark:border-slate-800">
@@ -110,7 +116,7 @@ export default function ApplySeatModal({
                 IUBAT Residential Seat Application
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                Spring 2026
+                Fall 2026
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -272,14 +278,30 @@ export default function ApplySeatModal({
 
               <div>
                 <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Guardian Mobile Phone
+                  Guardian / Father's Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
+                  name="guardianName"
+                  value={formData.guardianName}
+                  onChange={handleChange}
+                  placeholder="e.g. Md. Rafiqul Hasan"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Guardian Mobile Phone <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
                   name="guardianPhone"
                   value={formData.guardianPhone}
                   onChange={handleChange}
                   placeholder="+880 1711 987654"
+                  required
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 transition-colors"
                 />
               </div>

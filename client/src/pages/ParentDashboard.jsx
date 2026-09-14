@@ -21,10 +21,12 @@ import {
   Utensils,
   Lock,
   RefreshCw,
+  Bell,
 } from 'lucide-react';
 import { api } from '../services/api';
 import SSLCommerzModal from '../components/SSLCommerzModal';
 import PaymentReceiptModal from '../components/PaymentReceiptModal';
+import TargetedNoticesWidget from '../components/TargetedNoticesWidget';
 
 export default function ParentDashboard({ currentUser, onLogout, onShowToast }) {
   const [activeTab, setActiveTab] = useState(() => {
@@ -149,12 +151,12 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
   // 2. Night Roll-Call Attendance Logs
   const attendanceLogs = [
-    { date: 'Feb 18, 2026', time: '10:12 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
-    { date: 'Feb 17, 2026', time: '10:08 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
-    { date: 'Feb 16, 2026', time: '10:20 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
-    { date: 'Feb 15, 2026', time: '10:05 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
-    { date: 'Feb 14, 2026', time: 'N/A', status: 'On Approved Leave', warden: 'Out-Pass Ref #LP-081' },
-    { date: 'Feb 13, 2026', time: '10:14 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
+    { date: 'Sep 13, 2026', time: '10:12 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
+    { date: 'Sep 12, 2026', time: '10:08 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
+    { date: 'Sep 11, 2026', time: '10:20 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
+    { date: 'Sep 10, 2026', time: '10:05 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
+    { date: 'Sep 09, 2026', time: 'N/A', status: 'On Approved Leave', warden: 'Out-Pass Verified' },
+    { date: 'Sep 08, 2026', time: '10:14 PM', status: 'Present in Room', warden: 'Prof. Anisur Rahman' },
   ];
 
   // 3. Fee Invoices & Payments State (Live from MongoDB)
@@ -163,6 +165,14 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [activeInvoiceForPay, setActiveInvoiceForPay] = useState(null);
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState(null);
+  const [isRedirectingSSL, setIsRedirectingSSL] = useState(false);
+
+  // Open Exact SSLCommerz Payment Gateway Interface for Guardian (No auto-back)
+  const handlePayViaSSLCommerz = (inv) => {
+    setActiveInvoiceForPay(inv);
+    setIsSSLModalOpen(true);
+  };
+
 
   const fetchParentPayments = async () => {
     try {
@@ -173,6 +183,21 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
       }
     } catch (err) {
       console.error('Fetch parent payments error:', err);
+    }
+  };
+
+  const handleVerifyInvoice = async (inv) => {
+    if (!inv?.transactionId) return;
+    try {
+      const res = await api.validateSSLPayment(inv.transactionId);
+      if (res?.data?.paymentStatus === 'Paid') {
+        if (onShowToast) onShowToast(`Invoice #${inv.invoiceNo} verified & cleared as Paid via SSLCommerz!`, 'success');
+        fetchParentPayments();
+      } else {
+        if (onShowToast) onShowToast(`SSLCommerz Status: ${res?.data?.paymentStatus || 'Pending'}`, 'info');
+      }
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Failed to verify transaction status', 'error');
     }
   };
 
@@ -231,13 +256,13 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
       
       {/* 1. Guardian Header Card */}
-      <div className="rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-sm mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="ios-glass-card rounded-3xl p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               IUBAT Parent & Guardian Oversight Portal
             </span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+            <span className="ios-glass-pill text-[11px] font-bold px-3 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
               <Smartphone size={11} />
               <span>SMS Notifications Active</span>
             </span>
@@ -251,7 +276,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-left sm:text-right">
+          <div className="ios-glass-pill p-3.5 rounded-2xl text-left sm:text-right">
             <div className="text-[11px] text-slate-500 font-medium">Assigned Residential Unit</div>
             <div className="text-xs font-bold text-slate-900 dark:text-white">{student.hall} • {student.floor}</div>
             <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold font-mono">{student.room}</div>
@@ -259,7 +284,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/60 dark:hover:text-red-300 text-slate-700 dark:text-slate-300 transition-colors"
+            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -267,14 +292,14 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
         </div>
       </div>
 
-      {/* 2. Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto text-xs font-semibold">
+      {/* 2. Navigation Tabs (Apple iOS Liquid Glass Segmented Bar) */}
+      <div className="ios-glass p-1.5 rounded-2xl mb-6 flex items-center gap-1 overflow-x-auto text-xs font-semibold scrollbar-none">
         <button
           onClick={() => setActiveTab('attendance')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'attendance'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <CalendarCheck size={15} />
@@ -283,10 +308,10 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
         <button
           onClick={() => setActiveTab('leave')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'leave'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <FileText size={15} />
@@ -295,10 +320,10 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
         <button
           onClick={() => setActiveTab('fees')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'fees'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <CreditCard size={15} />
@@ -307,10 +332,10 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
         <button
           onClick={() => setActiveTab('meals')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'meals'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <Utensils size={15} />
@@ -319,14 +344,26 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
         <button
           onClick={() => setActiveTab('contacts')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'contacts'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <Phone size={15} />
           <span>Emergency Warden Contacts</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notices')}
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'notices'
+              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400 font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Bell size={15} />
+          <span>Provost Circulars & Notices</span>
         </button>
       </div>
 
@@ -562,8 +599,9 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                   ) : (
                     <button
                       type="button"
+                      disabled={isRedirectingSSL}
                       onClick={() => {
-                        setActiveInvoiceForPay({
+                        handlePayViaSSLCommerz({
                           invoiceId: dueRent._id,
                           invoiceNo: dueRent.invoiceNo,
                           feeType: 'Seat Rent',
@@ -574,9 +612,8 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                           hall: student.hall,
                           room: student.room,
                         });
-                        setIsSSLModalOpen(true);
                       }}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all"
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                     >
                       <Lock size={13} />
                       <span>Pay Seat Rent (৳{dueRent.amountBDT}) via SSLCommerz</span>
@@ -615,8 +652,9 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                   {hasDue ? (
                     <button
                       type="button"
+                      disabled={isRedirectingSSL}
                       onClick={() => {
-                        setActiveInvoiceForPay({
+                        handlePayViaSSLCommerz({
                           invoiceId: dueMeal._id,
                           invoiceNo: dueMeal.invoiceNo,
                           feeType: 'Monthly Meal Token',
@@ -627,9 +665,8 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                           hall: student.hall,
                           room: student.room,
                         });
-                        setIsSSLModalOpen(true);
                       }}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all"
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
                     >
                       <Utensils size={13} />
                       <span>Pay Consumed Mess Bill (৳{dueMeal.amountBDT}) via SSLCommerz</span>
@@ -685,22 +722,34 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                           setSelectedPaymentForReceipt(inv);
                           setIsReceiptModalOpen(true);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-semibold text-xs transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-semibold text-xs transition-colors cursor-pointer"
                       >
                         <Download size={13} />
                         <span>Download Receipt (PDF)</span>
                       </button>
                     ) : (
-                      <button
-                        onClick={() => {
-                          setActiveInvoiceForPay(inv);
-                          setIsSSLModalOpen(true);
-                        }}
-                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
-                      >
-                        <Lock size={12} />
-                        <span>Pay via SSLCommerz</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {inv.transactionId && (
+                          <button
+                            type="button"
+                            title="Verify SSL Status"
+                            onClick={() => handleVerifyInvoice(inv)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                          >
+                            <RefreshCw size={11} />
+                            <span>Verify</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={isRedirectingSSL}
+                          onClick={() => handlePayViaSSLCommerz(inv)}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                        >
+                          <Lock size={12} />
+                          <span>Pay via SSLCommerz</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -921,6 +970,32 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: PROVOST CIRCULARS & NOTICES FOR PARENTS                            */}
+      {/* ========================================================================= */}
+      {activeTab === 'notices' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <TargetedNoticesWidget
+            role="parent"
+            title="Official Provost Circulars & Notices for Parents / Guardians"
+            subtitle="Official guidelines, fee schedules, hall policy directives, and student welfare notices issued by the Hostel Super & Provost Office."
+          />
+        </div>
+      )}
+
+      {/* SSLCommerz Direct Gateway Redirection Loading Overlay */}
+      {isRedirectingSSL && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center space-y-4 animate-in fade-in duration-200">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-1">
+            <h3 className="text-xl font-black tracking-tight">Connecting to SSLCommerz Bank Gateway</h3>
+            <p className="text-xs text-slate-300 max-w-sm">
+              Please wait... You are being redirected to SSLCommerz 256-Bit Encrypted Hosted Checkout to select your payment option.
+            </p>
           </div>
         </div>
       )}

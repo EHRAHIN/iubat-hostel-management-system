@@ -33,6 +33,7 @@ import {
   Briefcase,
   Zap,
   Droplets,
+  Wifi,
   Utensils,
   RotateCcw,
   Eye,
@@ -48,6 +49,7 @@ import RoomManagerSection from '../components/RoomManagerSection';
 import RoomAllocateModal from '../components/RoomAllocateModal';
 import RoomTransferModal from '../components/RoomTransferModal';
 import DailyBazarMealReportSection from '../components/DailyBazarMealReportSection';
+import OfficialCircularModal from '../components/OfficialCircularModal';
 
 // CGPA Proximity & Comparison Calculator (Scale 4.00)
 const getCgpaComparison = (studentCgpa, partnerCgpa) => {
@@ -223,14 +225,12 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
   const fetchPersonnel = async () => {
     try {
       const res = await api.getUsers({ role: 'all' });
-      if (res?.data && res.data.length > 0) {
+      if (res?.data) {
         const filtered = res.data.filter((u) => u.role === 'teacher' || u.role === 'staff');
-        if (filtered.length > 0) {
-          setProvisionedPersonnel(filtered);
-        }
+        setProvisionedPersonnel(filtered);
       }
     } catch (err) {
-      console.log('Using default provisioned list fallback:', err.message);
+      console.log('Error fetching personnel from MongoDB:', err.message);
     }
   };
 
@@ -367,14 +367,18 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
     }
   };
 
-  const handleDeletePersonnel = async (id, name) => {
+  const handleDeletePersonnel = async (id, name, role = 'Staff/Teacher') => {
+    if (!window.confirm(`Are you sure you want to permanently delete account for "${name}" (${role}) from the database? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
-      await api.deleteUser(id);
-      setProvisionedPersonnel((prev) => prev.filter((p) => p._id !== id && p.userId !== id));
-      onShowToast(`Account for ${name} removed from active roster.`, 'info');
+      const res = await api.deleteUser(id);
+      onShowToast(res?.message || `Account for ${name} permanently deleted from database.`, 'success');
+      await fetchPersonnel();
     } catch (err) {
-      setProvisionedPersonnel((prev) => prev.filter((p) => p._id !== id && p.userId !== id));
-      onShowToast(`Account for ${name} removed.`, 'info');
+      console.error('Delete personnel error:', err);
+      onShowToast(err.message || `Failed to delete ${name} from database.`, 'error');
     }
   };
 
@@ -384,30 +388,39 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
     onShowToast(`Credentials for ${email} copied to clipboard!`, 'success');
   };
 
-  // 4. Official Notice Publisher State
-  const [notices, setNotices] = useState([
-    {
-      id: 'NOT-2026-042',
-      title: 'Spring 2026 Residential Hall Seat Application Schedule and Deadline',
-      category: 'Allocation',
-      date: 'February 18, 2026',
-      status: 'Published Live',
-    },
-    {
-      id: 'NOT-2026-019',
-      title: 'Standard Operating Procedure: Night Attendance and 10:00 PM Curfew Timing',
-      category: 'Administration',
-      date: 'February 12, 2026',
-      status: 'Published Live',
-    },
-  ]);
+  // 4. Official Notice Publisher State (Live from MongoDB Atlas)
+  const [notices, setNotices] = useState([]);
+  const [isLoadingNotices, setIsLoadingNotices] = useState(false);
+  const [selectedNoticeForModal, setSelectedNoticeForModal] = useState(null);
+  const [noticeFilterAudience, setNoticeFilterAudience] = useState('all');
 
   const [newNoticeModalOpen, setNewNoticeModalOpen] = useState(false);
   const [newNoticeForm, setNewNoticeForm] = useState({
     title: '',
     category: 'Allocation',
+    targetAudience: 'all',
+    refNo: '',
     content: '',
+    isPinned: false,
   });
+
+  const fetchSuperNotices = async () => {
+    try {
+      setIsLoadingNotices(true);
+      const res = await api.getNotices();
+      if (res?.data) {
+        setNotices(res.data);
+      }
+    } catch (err) {
+      console.log('Error fetching super notices:', err.message);
+    } finally {
+      setIsLoadingNotices(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSuperNotices();
+  }, []);
 
   // 5. Disciplinary Incident Reviews State
   const [incidentReviews, setIncidentReviews] = useState([
@@ -527,7 +540,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
             recommendedRoom: app.allocatedRoom || app.recommendedRoom || '',
             recommendedBed: app.allocatedBed || app.recommendedBed || '',
             recommendedFloor: app.allocatedFloor || app.recommendedFloor || 'Floor 1',
-            recommendedTutor: app.recommendedTutor || (app.recommendedHall?.includes('Meghna') ? 'Dr. Nusrat Jahan' : 'Dr. Tariqul Islam'),
+            recommendedTutor: app.recommendedTutor || ((app.allocatedFloor || app.recommendedFloor) === 'Floor 2' ? 'Prof. Anisur Rahman' : 'Dr. Tariqul Islam'),
             matchReasons: pairedName && pairedReasons.length > 0
               ? pairedReasons
               : (app.matchReasons?.length > 0 ? app.matchReasons : [
@@ -607,15 +620,38 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
   const handleDeleteApplication = async (appId) => {
     try {
       const targetApp = seatApplications.find((a) => a.id === appId);
-      if (!window.confirm(`Are you sure you want to permanently delete application #${targetApp?.applicationRef} for ${targetApp?.studentName}? This will free up their bed in the room.`)) {
+      if (!window.confirm(`Are you sure you want to permanently delete student "${targetApp?.studentName}" (${targetApp?.studentId}) and seat application #${targetApp?.applicationRef} from the database? This will completely remove their account, free up their bed in the room, and wipe all records.`)) {
         return;
       }
       const res = await api.deleteApplication(appId);
-      onShowToast(res?.message || `Seat application deleted!`, 'success');
-      await fetchSeatApplications();
+      onShowToast(res?.message || `Student and seat application permanently deleted from database!`, 'success');
+      await Promise.all([
+        fetchSeatApplications(),
+        fetchAllStudents(),
+        fetchRooms(),
+      ]);
     } catch (err) {
       console.error('Delete application error:', err);
       onShowToast(err.message || 'Failed to delete application', 'error');
+    }
+  };
+
+  const handleDeleteStudent = async (id, name, userId) => {
+    if (!window.confirm(`Are you sure you want to permanently delete student "${name}" (${userId || id}) from the database? This will remove their user account, free up any assigned room bed, and delete all their hostel applications and records.`)) {
+      return;
+    }
+
+    try {
+      const res = await api.deleteUser(id);
+      onShowToast(res?.message || `Student "${name}" permanently deleted from database.`, 'success');
+      await Promise.all([
+        fetchAllStudents(),
+        fetchSeatApplications(),
+        fetchRooms(),
+      ]);
+    } catch (err) {
+      console.error('Delete student error:', err);
+      onShowToast(err.message || `Failed to delete student "${name}" from database.`, 'error');
     }
   };
 
@@ -650,22 +686,62 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
     }
   };
 
-  const handlePublishNotice = (e) => {
+  const handlePublishNotice = async (e) => {
     e.preventDefault();
-    if (!newNoticeForm.title.trim()) return;
+    if (!newNoticeForm.title.trim() || !newNoticeForm.content.trim()) return;
 
-    const notice = {
-      id: `NOT-2026-0${notices.length + 43}`,
-      title: newNoticeForm.title,
-      category: newNoticeForm.category,
-      date: 'February 19, 2026',
-      status: 'Published Live',
-    };
+    try {
+      const audienceLabels = {
+        all: 'All Residents & Campus',
+        students: 'Students Only',
+        teachers: 'Floor Teachers (House Tutors)',
+        staff: 'Dining & Maintenance Staff',
+        parents: 'Parents & Guardians',
+        'floor-1': 'Padma Floor 1 Residents',
+        'floor-2': 'Padma Floor 2 Residents',
+      };
 
-    setNotices([notice, ...notices]);
-    setNewNoticeModalOpen(false);
-    setNewNoticeForm({ title: '', category: 'Allocation', content: '' });
-    onShowToast('Official administrative notice published live across all student portals.', 'success');
+      const payload = {
+        title: newNoticeForm.title.trim(),
+        category: newNoticeForm.category,
+        targetAudience: newNoticeForm.targetAudience,
+        targetAudienceLabel: audienceLabels[newNoticeForm.targetAudience] || 'All Residents & Campus',
+        refNo: newNoticeForm.refNo.trim() || undefined,
+        summary: newNoticeForm.content.trim(),
+        content: newNoticeForm.content.trim(),
+        authority: 'Office of the Provost',
+        publishedBy: 'Prof. Dr. Monirul Islam (Hostel Super / Provost)',
+        isPinned: Boolean(newNoticeForm.isPinned),
+      };
+
+      const res = await api.createNotice(payload);
+      if (res?.data) {
+        setNotices((prev) => [res.data, ...prev]);
+        setNewNoticeModalOpen(false);
+        setNewNoticeForm({
+          title: '',
+          category: 'Allocation',
+          targetAudience: 'all',
+          refNo: '',
+          content: '',
+          isPinned: false,
+        });
+        onShowToast(`Official Circular #${res.data.refNo} published live to ${payload.targetAudienceLabel}!`, 'success');
+      }
+    } catch (err) {
+      onShowToast(err.message || 'Failed to publish notice', 'error');
+    }
+  };
+
+  const handleDeleteNotice = async (noticeId, refNo) => {
+    if (!window.confirm(`Are you sure you want to permanently retract circular #${refNo || ''}?`)) return;
+    try {
+      await api.deleteNotice(noticeId);
+      setNotices((prev) => prev.filter((n) => (n._id || n.id) !== noticeId));
+      onShowToast(`Circular #${refNo || ''} retracted successfully.`, 'success');
+    } catch (err) {
+      onShowToast(err.message || 'Failed to delete notice', 'error');
+    }
   };
 
   // 7. Tutor-Verified Maintenance Complaints awaiting Provost Staff Delegation (Live from MongoDB)
@@ -685,7 +761,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
 
   const fetchRoomsList = async () => {
     try {
-      const res = await api.getRooms({ hallId: 'padma' });
+      const res = await api.getRooms();
       if (res?.data) {
         setRoomsList(res.data);
       }
@@ -760,12 +836,13 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
     fetchAllStudents();
     fetchTransferRequests();
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       fetchSeatApplications();
       fetchSuperComplaints();
       fetchRoomsList();
       fetchAllStudents();
       fetchTransferRequests();
-    }, 3000);
+    }, 7000);
     return () => clearInterval(interval);
   }, []);
 
@@ -930,14 +1007,14 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
       {/* 1. Provost Header Card */}
-      <div className="rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-sm mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="ios-glass-card rounded-3xl p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
               <ShieldCheck size={14} />
               <span>Office of the Provost & Chief Warden Console</span>
             </span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <span className="ios-glass-pill text-[11px] font-bold px-3 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300">
               Hostel Super Authority
             </span>
           </div>
@@ -950,7 +1027,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-left sm:text-right">
+          <div className="ios-glass-pill p-3.5 rounded-2xl text-left sm:text-right">
             <div className="text-[11px] text-slate-500 font-medium">Residential Governance Scope</div>
             <div className="text-xs font-bold text-slate-900 dark:text-white">1,108 Residents / 1,250 Beds (88.6%)</div>
             <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold font-mono">
@@ -962,7 +1039,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
           <div className="relative">
             <button
               onClick={() => setNotificationOpen(!notificationOpen)}
-              className="relative p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center"
+              className="ios-glass-pill ios-tap-active relative p-2.5 rounded-full text-slate-700 dark:text-slate-300 transition-all flex items-center justify-center cursor-pointer shadow-xs"
               title="Notifications & Live Alerts"
             >
               <Bell size={18} />
@@ -1026,7 +1103,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/60 dark:hover:text-red-300 text-slate-700 dark:text-slate-300 transition-colors"
+            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -1039,10 +1116,10 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
         
         {/* LEFT VERTICAL SIDEBAR NAVIGATION (Col 1-3) */}
         <aside className="lg:col-span-3 space-y-4">
-          <div className="p-4 rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200/80 dark:border-slate-800/80 shadow-sm space-y-2 lg:sticky lg:top-6">
+          <div className="ios-glass-card p-4 rounded-3xl space-y-2 lg:sticky lg:top-6">
             <div className="px-3 py-2 text-[10px] uppercase font-black tracking-wider text-slate-400 flex items-center justify-between">
               <span>Super Authority Menus</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono font-bold">
+              <span className="ios-glass-pill text-[10px] px-2.5 py-0.5 rounded-full text-slate-500 font-mono font-bold">
                 {superNavItems.length} Menus
               </span>
             </div>
@@ -1055,16 +1132,16 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
-                    className={`w-full p-3 rounded-2xl text-left transition-all flex items-start gap-3 relative group ${
+                    className={`ios-tap-active w-full p-3 rounded-2xl text-left transition-all flex items-start gap-3 relative group cursor-pointer ${
                       isActive
-                        ? 'bg-emerald-700 text-white shadow-lg shadow-emerald-700/20 font-bold'
-                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+                        ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-700/25 border border-white/20 font-bold'
+                        : 'ios-glass-pill hover:bg-white/60 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300'
                     }`}
                   >
                     <div className={`p-2 rounded-xl shrink-0 transition-colors ${
                       isActive
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white'
+                        ? 'bg-white/20 text-white shadow-inner'
+                        : 'bg-white/40 dark:bg-black/30 text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white'
                     }`}>
                       <Icon size={16} />
                     </div>
@@ -1119,10 +1196,10 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                Merit-Based Seat Allocation & Smart Searching Roommate Pairing Reviews
+                Seat Allocation & Roommate Matching Review
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Review applicant merit ranking, CGPA, and Smart Searching Roommate vector compatibility scores before granting final seat allotment.
+                Review applicant academic merit, CGPA, and roommate compatibility before confirming seat allocation.
               </p>
             </div>
             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
@@ -1175,7 +1252,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
                           <Sparkles size={13} className="text-emerald-600 dark:text-emerald-400" />
-                          <span>{app.aiPartnerName ? 'Smart Searching Roommate:' : 'Allocation Recommendation:'}</span>
+                          <span>{app.aiPartnerName ? 'Matched Roommate:' : 'Allocation Recommendation:'}</span>
                         </span>
                         {app.aiPartnerName && app.aiScore ? (
                           <span className="font-black text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 rounded-full">
@@ -1886,6 +1963,14 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                                 <ArrowRightLeft size={12} />
                                 <span>{isAllocated ? 'Transfer' : 'Assign'}</span>
                               </button>
+
+                              <button
+                                onClick={() => handleDeleteStudent(st._id || st.userId, st.name, st.userId)}
+                                className="p-1.5 rounded-xl bg-slate-100 hover:bg-red-50 hover:text-red-600 dark:bg-slate-800 dark:hover:bg-red-950/40 dark:hover:text-red-400 text-slate-400 transition-colors"
+                                title="Permanently Delete Student from Database"
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -2255,9 +2340,9 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                       </button>
 
                       <button
-                        onClick={() => handleDeletePersonnel(p._id || p.userId, p.name)}
+                        onClick={() => handleDeletePersonnel(p._id || p.userId, p.name, p.role === 'teacher' ? 'Floor Teacher' : 'Staff')}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
-                        title="Deprovision Account"
+                        title="Permanently Delete Account from Database"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -2317,9 +2402,12 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                 {verifiedTickets.map((ticket) => {
                   const ticketId = ticket.ticketId || ticket.id || ticket._id;
                   const isAssigned = !ticket.assignedStaff?.includes('Pending');
-                  const isElectrical = ticket.category === 'Electrical';
-                  const isWater = ticket.category?.includes('Water');
-                  const isCleaning = ticket.category?.includes('Cleaning');
+                  const catLower = (ticket.category || '').toLowerCase();
+                  const isElectrical = catLower.includes('electr');
+                  const isNet = catLower.includes('net') || catLower.includes('wi-fi');
+                  const isWater = catLower.includes('plumb') || catLower.includes('water');
+                  const isFurniture = catLower.includes('furn') || catLower.includes('lock') || catLower.includes('bed');
+                  const isCleaning = catLower.includes('clean');
 
                   return (
                     <div
@@ -2331,16 +2419,22 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                           <div className="flex items-center gap-2.5">
                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${isElectrical
                                 ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400'
-                                : isWater
+                                : isNet
                                   ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400'
-                                  : isCleaning
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400'
-                                    : 'bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400'
+                                  : isWater
+                                    ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-600 dark:text-teal-400'
+                                    : isFurniture
+                                      ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400'
+                                      : isCleaning
+                                        ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400'
+                                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                               }`}>
                               {isElectrical && <Zap size={16} />}
+                              {isNet && <Wifi size={16} />}
                               {isWater && <Droplets size={16} />}
+                              {isFurniture && <Key size={16} />}
                               {isCleaning && <Sparkles size={16} />}
-                              {!isElectrical && !isWater && !isCleaning && <Wrench size={16} />}
+                              {!isElectrical && !isNet && !isWater && !isFurniture && !isCleaning && <Wrench size={16} />}
                             </div>
                             <div>
                               <span className="font-bold text-slate-900 dark:text-white text-sm block">
@@ -2430,35 +2524,129 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                Official Circular & Notice Board Publisher
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FileText size={18} className="text-emerald-600 dark:text-emerald-400" />
+                <span>Official Circular & Notice Board Publisher</span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Draft and broadcast official policy circulars across the public website and student portals.
+                Broadcast policy directives and circulars targeted to Students, Floor Teachers, Staff, or Parents.
               </p>
             </div>
             <button
-              onClick={() => setNewNoticeModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
+              onClick={() => {
+                const totalCount = notices.length + 1;
+                setNewNoticeForm({
+                  title: '',
+                  category: 'Allocation',
+                  targetAudience: 'all',
+                  refNo: `IUBAT/PRV/2026/${String(totalCount).padStart(3, '0')}`,
+                  content: '',
+                  isPinned: false,
+                });
+                setNewNoticeModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md cursor-pointer transition-all"
             >
               <Plus size={14} />
               <span>Draft New Circular</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {notices.map((n) => (
-              <div key={n.id} className="p-5 rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-sm text-xs space-y-2.5">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <span className="font-mono text-slate-400 text-[11px]">Ref: {n.id}</span>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    {n.status}
-                  </span>
-                </div>
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm">{n.title}</h3>
-                <div className="text-slate-500 text-[11px]">Category: {n.category} • Date: {n.date}</div>
-              </div>
+          {/* Audience Filter Bar */}
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full shadow-xs">
+            {[
+              { id: 'all', label: 'All Notices' },
+              { id: 'students', label: '🎓 Students Only' },
+              { id: 'teachers', label: '👨‍🏫 Floor Teachers' },
+              { id: 'staff', label: '🛠️ Staff (Dining & Mnt)' },
+              { id: 'parents', label: '👨‍👦 Parents & Guardians' },
+              { id: 'floor-1', label: '🏢 Floor 1' },
+              { id: 'floor-2', label: '🏢 Floor 2' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setNoticeFilterAudience(f.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  noticeFilterAudience === f.id
+                    ? 'bg-emerald-700 dark:bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {f.label}
+              </button>
             ))}
+          </div>
+
+          {/* Circulars Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {notices
+              .filter((n) => noticeFilterAudience === 'all' || (n.targetAudience || 'all') === noticeFilterAudience)
+              .map((n) => (
+                <div 
+                  key={n._id || n.id || n.refNo} 
+                  className="p-5 rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-sm text-xs flex flex-col justify-between hover:shadow-md transition-all space-y-3"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-emerald-700 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800">
+                          Ref: {n.refNo || n.id}
+                        </span>
+                        {n.isPinned && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300">
+                            Urgent / Pinned
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                        <Clock size={12} />
+                        <span>{n.date}</span>
+                      </span>
+                    </div>
+
+                    <div className="pt-2">
+                      <div className="flex items-center gap-1.5 text-[11px] mb-1">
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                          {n.category}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-200 dark:border-emerald-800/60">
+                          🎯 Sent to: {n.targetAudienceLabel || 'All Residents & Campus'}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm leading-snug">
+                        {n.title}
+                      </h3>
+                      <p className="text-slate-600 dark:text-slate-400 text-xs mt-1.5 leading-relaxed line-clamp-3">
+                        {n.content || n.summary}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Authority: {n.authority || 'Office of the Provost'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedNoticeForModal(n)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] cursor-pointer transition-colors"
+                      >
+                        <Eye size={12} />
+                        <span>View / Print</span>
+                      </button>
+                      {n._id && (
+                        <button
+                          onClick={() => handleDeleteNotice(n._id, n.refNo || n.id)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 dark:text-red-400 font-bold text-[11px] cursor-pointer transition-colors"
+                          title="Retract / Delete Circular"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -2515,64 +2703,129 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
       {/* ========================================================================= */}
       {newNoticeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-xl text-xs">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-              Publish Administrative Notice
+          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl text-xs max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+              <FileText size={18} className="text-emerald-600 dark:text-emerald-400" />
+              <span>Publish Administrative Notice & Circular</span>
             </h2>
             <p className="text-slate-500 mb-4">
-              Issued under the authority of the Office of the Provost.
+              Issued under the authority of the Office of the Provost & Hostel Super.
             </p>
 
             <form onSubmit={handlePublishNotice} className="space-y-3.5">
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Circular Title</label>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Circular Subject / Title
+                </label>
                 <input
                   type="text"
                   value={newNoticeForm.title}
                   onChange={(e) => setNewNoticeForm({ ...newNoticeForm, title: e.target.value })}
-                  placeholder="e.g. Schedule for Room Inventory Handover..."
+                  placeholder="e.g. Mandatory Guidelines for Fall 2026 Hall Seat Allocation..."
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
                   required
                 />
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Notice Category</label>
-                <select
-                  value={newNoticeForm.category}
-                  onChange={(e) => setNewNoticeForm({ ...newNoticeForm, category: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 cursor-pointer"
-                >
-                  <option value="Allocation">Seat Allocation & Deadlines</option>
-                  <option value="Administration">Administration & Night Roll-Call</option>
-                  <option value="Dining">Mess Billing & Dining Tokens</option>
-                  <option value="Maintenance">Estate & Maintenance</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Notice Category
+                  </label>
+                  <select
+                    value={newNoticeForm.category}
+                    onChange={(e) => {
+                      const cat = e.target.value;
+                      const catCode = cat === 'Allocation' ? 'RO' : cat === 'Dining' ? 'MC' : cat === 'Maintenance' ? 'IT' : cat === 'Discipline' ? 'HD' : 'PRV';
+                      setNewNoticeForm({
+                        ...newNoticeForm,
+                        category: cat,
+                        refNo: `IUBAT/${catCode}/2026/${String(notices.length + 1).padStart(3, '0')}`,
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 cursor-pointer"
+                  >
+                    <option value="Allocation">Seat Allocation & Deadlines</option>
+                    <option value="Administration">Administration & Night Roll-Call</option>
+                    <option value="Dining">Mess Billing & Dining Tokens</option>
+                    <option value="Maintenance">Estate & Maintenance</option>
+                    <option value="Discipline">Discipline & Code of Conduct</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    🎯 Target Audience (যাদের উদ্দেশ্যে দেওয়া হবে)
+                  </label>
+                  <select
+                    value={newNoticeForm.targetAudience}
+                    onChange={(e) => setNewNoticeForm({ ...newNoticeForm, targetAudience: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-200 font-semibold outline-none focus:border-emerald-600 cursor-pointer"
+                  >
+                    <option value="all">🌐 All Residents & Campus (Public)</option>
+                    <option value="students">🎓 Students Only (Student Portal)</option>
+                    <option value="teachers">👨‍🏫 Floor Teachers (House Tutors Portal)</option>
+                    <option value="staff">🛠️ Staff (Dining & Maintenance Operations)</option>
+                    <option value="parents">👨‍👦 Parents & Guardians (Parent Portal)</option>
+                    <option value="floor-1">🏢 Padma Floor 1 Only</option>
+                    <option value="floor-2">🏢 Padma Floor 2 Only</option>
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Circular Description / Directives</label>
-                <textarea
-                  rows={3}
-                  value={newNoticeForm.content}
-                  onChange={(e) => setNewNoticeForm({ ...newNoticeForm, content: e.target.value })}
-                  placeholder="Provide circular text directives..."
-                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 resize-none"
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1 flex items-center justify-between">
+                  <span>Official Reference Number</span>
+                  <span className="text-[10px] font-mono text-slate-400">Institutional Reference Standard</span>
+                </label>
+                <input
+                  type="text"
+                  value={newNoticeForm.refNo}
+                  onChange={(e) => setNewNoticeForm({ ...newNoticeForm, refNo: e.target.value })}
+                  placeholder="e.g. IUBAT/PRV/2026/045"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-xs outline-none focus:border-emerald-600"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Circular Directives / Full Content
+                </label>
+                <textarea
+                  rows={4}
+                  value={newNoticeForm.content}
+                  onChange={(e) => setNewNoticeForm({ ...newNoticeForm, content: e.target.value })}
+                  placeholder="Enter official circular text directives, deadlines, and instructions..."
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 resize-none text-xs"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800">
+                <input
+                  type="checkbox"
+                  id="pinNotice"
+                  checked={newNoticeForm.isPinned}
+                  onChange={(e) => setNewNoticeForm({ ...newNoticeForm, isPinned: e.target.checked })}
+                  className="w-4 h-4 rounded text-emerald-600 cursor-pointer"
+                />
+                <label htmlFor="pinNotice" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                  Mark as High-Priority / Pinned Broadcast (Urgent Circular)
+                </label>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setNewNoticeModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                  className="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold"
+                  className="px-5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold cursor-pointer shadow-sm"
                 >
                   Publish Notice Live
                 </button>
@@ -2582,10 +2835,18 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
         </div>
       )}
 
+      {/* Modal: Official Circular Viewer for Hostel Super */}
+      {selectedNoticeForModal && (
+        <OfficialCircularModal
+          notice={selectedNoticeForModal}
+          onClose={() => setSelectedNoticeForModal(null)}
+        />
+      )}
+
       {/* 8. Modal: Provision New Personnel (Floor Teacher or Staff) */}
       {provisionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-xl text-xs space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl text-xs space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -2855,7 +3116,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
       {/* 8. Room Transfer Rejection Modal */}
       {rejectModalData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <X className="text-rose-600" size={18} />

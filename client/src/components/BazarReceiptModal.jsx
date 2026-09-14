@@ -80,7 +80,7 @@ export default function BazarReceiptModal({ isOpen, onClose, requisition, isMont
               <span>IUBAT — International University of Business Agriculture and Technology</span>
             </div>
             <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-              Padma & Meghna Residential Dining Governance
+              Padma Residential Dining Governance
             </h1>
             <p className="text-[11px] text-slate-500">
               Kitchen Pantry Procurement & Daily Commercial Expense Voucher

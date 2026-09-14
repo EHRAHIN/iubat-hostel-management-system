@@ -9,12 +9,14 @@ const {
   rejectMealBooking,
   getStudentMealSummary,
   getMessStats,
+  verifyMealQr,
 } = require('../controllers/messController');
 
 router.get('/menu', getMenu);
 router.post('/menu', updateMenu);
 router.get('/bookings', getBookings);
 router.post('/apply', applyMeal);
+router.post('/verify-qr', verifyMealQr);
 router.put('/bookings/:id/approve', approveMealBooking);
 router.put('/bookings/:id/reject', rejectMealBooking);
 router.get('/student-summary/:studentId', getStudentMealSummary);

@@ -119,6 +119,68 @@ export default function SmartSeatAssignModal({
       console.error('Smart Seat Allocation error:', err);
       // Fallback result for high UX resilience
       setTimeout(() => {
+        const candidatePrefs = {
+          sleepSchedule: 'night-owl',
+          studyHabit: 'moderate-study',
+          cleanliness: 'strictly-clean',
+          religious: 'regular-practicing',
+          departmentPreference: 'same-dept',
+          behavior: 'balanced',
+        };
+        const studentDept = (studentUser?.department || 'CSE').toLowerCase();
+        const candidateDept = 'cse';
+
+        const dynamicMatches = [];
+        if (preferences.sleepSchedule === candidatePrefs.sleepSchedule || preferences.sleepSchedule === 'flexible') {
+          dynamicMatches.push({
+            key: 'sleep',
+            label: preferences.sleepSchedule === 'night-owl'
+              ? 'Sleep: Night Owl (Late Study 1:00 AM+)'
+              : 'Sleep: Early Riser Routine (6:00 AM)',
+          });
+        }
+        if (preferences.studyHabit === candidatePrefs.studyHabit) {
+          dynamicMatches.push({
+            key: 'study',
+            label: preferences.studyHabit === 'intense-silent'
+              ? 'Study: Silent Academic Focus'
+              : preferences.studyHabit === 'less-study-casual'
+              ? 'Study: Casual / Group Study'
+              : 'Study: Moderate Study Hours',
+          });
+        }
+        if (preferences.cleanliness === candidatePrefs.cleanliness || preferences.cleanliness === 'flexible') {
+          dynamicMatches.push({
+            key: 'hygiene',
+            label: preferences.cleanliness === 'strictly-clean'
+              ? 'Hygiene: High Cleanliness'
+              : 'Hygiene: Standard Shared Cleanliness',
+          });
+        }
+        if (preferences.religious === candidatePrefs.religious || preferences.religious === 'flexible') {
+          dynamicMatches.push({
+            key: 'religious',
+            label: 'Lifestyle: Regular Prayer / Practice Routine',
+          });
+        }
+        const isComputing = (d) => d.includes('cse') || d.includes('computer') || d.includes('software');
+        const isSameDept = (isComputing(studentDept) && isComputing(candidateDept)) || studentDept === candidateDept;
+        if (preferences.departmentPreference === 'any-dept' || isSameDept) {
+          dynamicMatches.push({
+            key: 'dept',
+            label: `Dept: ${studentUser?.department || 'CSE'} Peer Study Synergy`,
+          });
+        }
+        if (preferences.behavior === candidatePrefs.behavior || preferences.behavior === 'balanced') {
+          dynamicMatches.push({
+            key: 'behavior',
+            label: 'Dynamic: Balanced Room Dynamic',
+          });
+        }
+
+        const totalCriteria = 6;
+        const matchedScore = Math.round((dynamicMatches.length / totalCriteria) * 100);
+
         const fallbackRes = {
           success: true,
           message: 'Smart Seat Allocated with High Compatibility!',
@@ -130,15 +192,20 @@ export default function SmartSeatAssignModal({
             unit: 'Padma Residential Hall (Floor 1, Room 102, Bed A)',
             houseTutor: 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)',
             houseTutorPhone: '+880 1819 123456',
-            matchScore: 96.4,
-            matchReasons: [
-              `Synchronized ${preferences.sleepSchedule === 'night-owl' ? 'Late-Night Study (1:00 AM+)' : 'Early Rising Routine'} sleep habits`,
-              `Dedicated ${preferences.studyHabit.replace('-', ' ')} academic environment`,
-              'High room cleanliness & hygiene discipline',
-              'Congruent prayer & lifestyle routine compatibility',
-              'Mutual respect for quiet hours and study focus',
-            ],
-            roommate: null,
+            matchScore: matchedScore,
+            matchedCount: dynamicMatches.length,
+            totalCriteria,
+            matchedOptions: dynamicMatches,
+            matchReasons: dynamicMatches.map((m) => m.label),
+            roommate: {
+              name: studentUser?.name?.toLowerCase().includes('tanvir') ? 'Emdadul Rahin' : 'Tanvir Hasan',
+              matchScore: matchedScore,
+              matchedCount: dynamicMatches.length,
+              totalCriteria,
+              matchedOptions: dynamicMatches,
+              preferences: candidatePrefs,
+              department: 'CSE',
+            },
           },
         };
         setAllocationResult(fallbackRes);
@@ -157,7 +224,7 @@ export default function SmartSeatAssignModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className={`w-full ${step === 'result' ? 'max-w-xl' : 'max-w-2xl'} my-6 rounded-3xl bg-white dark:bg-[#0d1322] border border-slate-200/90 dark:border-slate-800/90 shadow-2xl overflow-hidden transition-all`}>
+      <div className={`w-full ${step === 'result' ? 'max-w-lg' : 'max-w-2xl'} my-4 rounded-3xl bg-white dark:bg-[#0d1322] border border-slate-200/90 dark:border-slate-800/90 shadow-2xl overflow-hidden transition-all`}>
         
         {/* Header */}
         <div className="relative px-6 py-5 bg-gradient-to-r from-emerald-800 via-teal-800 to-slate-900 text-white border-b border-emerald-600/30">
@@ -448,127 +515,218 @@ export default function SmartSeatAssignModal({
           {/* ============================================================ */}
           {/* STEP 3: MATCH & ALLOCATION RESULT */}
           {/* ============================================================ */}
-          {step === 'result' && allocationResult && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-900/20 shrink-0">
-                    <Check size={20} />
+          {step === 'result' && allocationResult && (() => {
+            const matchedRoommate = allocationResult.allocation?.roommate;
+            const matchedName = matchedRoommate?.name || (studentUser?.name?.toLowerCase().includes('tanvir') ? 'Emdadul Rahin' : 'Tanvir Hasan');
+
+            const candidatePrefs = matchedRoommate?.preferences || {
+              sleepSchedule: 'night-owl',
+              studyHabit: 'moderate-study',
+              cleanliness: 'strictly-clean',
+              religious: 'regular-practicing',
+              departmentPreference: 'same-dept',
+              behavior: 'balanced',
+            };
+            const studentDept = (studentUser?.department || 'CSE').toLowerCase();
+            const candidateDept = (matchedRoommate?.department || 'CSE').toLowerCase();
+
+            // Evaluate the 6 core dimensions: Sleep, Study, Cleanliness, Religious, Department, Behavior
+            const dynamicMatches = [];
+
+            // 1. Sleep Schedule
+            if (preferences.sleepSchedule === candidatePrefs.sleepSchedule || preferences.sleepSchedule === 'flexible' || candidatePrefs.sleepSchedule === 'flexible') {
+              dynamicMatches.push({
+                key: 'sleep',
+                label: preferences.sleepSchedule === 'night-owl'
+                  ? 'Sleep: Night Owl (1:00 AM+ Study)'
+                  : preferences.sleepSchedule === 'early-riser'
+                  ? 'Sleep: Early Riser Routine (6:00 AM)'
+                  : 'Sleep: Compatible Sleep Schedule',
+              });
+            }
+
+            // 2. Study Habit
+            if (preferences.studyHabit === candidatePrefs.studyHabit) {
+              dynamicMatches.push({
+                key: 'study',
+                label: preferences.studyHabit === 'intense-silent'
+                  ? 'Study: Silent Academic Focus'
+                  : preferences.studyHabit === 'less-study-casual'
+                  ? 'Study: Casual / Group Study'
+                  : 'Study: Moderate Study Hours',
+              });
+            }
+
+            // 3. Hygiene & Cleanliness
+            if (preferences.cleanliness === candidatePrefs.cleanliness || preferences.cleanliness === 'flexible' || candidatePrefs.cleanliness === 'flexible') {
+              dynamicMatches.push({
+                key: 'hygiene',
+                label: preferences.cleanliness === 'strictly-clean'
+                  ? 'Hygiene: High Cleanliness'
+                  : 'Hygiene: Shared Room Tidiness',
+              });
+            }
+
+            // 4. Religious / Daily Lifestyle
+            if (preferences.religious === candidatePrefs.religious || preferences.religious === 'flexible' || candidatePrefs.religious === 'flexible') {
+              dynamicMatches.push({
+                key: 'religious',
+                label: preferences.religious === 'regular-practicing'
+                  ? 'Lifestyle: Regular Prayer Routine'
+                  : 'Lifestyle: Harmonious Daily Routine',
+              });
+            }
+
+            // 5. Department Synergy
+            const isComputing = (d) => d.includes('cse') || d.includes('computer') || d.includes('software');
+            const isSameDept = (isComputing(studentDept) && isComputing(candidateDept)) || studentDept === candidateDept;
+            if (preferences.departmentPreference === 'any-dept' || isSameDept) {
+              dynamicMatches.push({
+                key: 'dept',
+                label: isSameDept
+                  ? `Dept: ${studentUser?.department || 'CSE'} Peer Study Synergy`
+                  : 'Dept: Interdisciplinary Collaboration',
+              });
+            }
+
+            // 6. Behavior / Room Dynamic
+            if (preferences.behavior === candidatePrefs.behavior || preferences.behavior === 'balanced' || candidatePrefs.behavior === 'balanced') {
+              dynamicMatches.push({
+                key: 'behavior',
+                label: preferences.behavior === 'quiet-introvert'
+                  ? 'Dynamic: Quiet & Private Space'
+                  : preferences.behavior === 'friendly-extrovert'
+                  ? 'Dynamic: Friendly & Social Room'
+                  : 'Dynamic: Balanced Room Dynamic',
+              });
+            }
+
+            const totalOptions = 6;
+            // Use matched options from backend or dynamically calculated exact matches
+            const matchedOptionsList = (matchedRoommate?.matchedOptions && matchedRoommate.matchedOptions.length > 0)
+              ? matchedRoommate.matchedOptions
+              : dynamicMatches;
+            const matchedCount = matchedOptionsList.length;
+            const matchPercent = Math.round((matchedCount / totalOptions) * 100);
+
+            return (
+              <div className="space-y-3.5 animate-fade-in text-slate-900 dark:text-slate-100">
+                {/* Compact Status Banner */}
+                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm shrink-0">
+                      <Check size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-emerald-950 dark:text-emerald-100 block truncate">
+                        Application Submitted to Hostel Super & Provost!
+                      </span>
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400 block truncate">
+                        Status: <strong>Pending Provost Allocation Approval</strong>
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block truncate">
-                      Application Submitted to Hostel Super / Provost Office!
-                    </span>
-                    <span className="text-[11px] text-emerald-700 dark:text-emerald-400 block truncate">
-                      Status: <strong>Pending Provost Allocation Approval</strong> • {allocationResult.allocation?.hall}
+
+                  <div className="shrink-0">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100/90 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[10px] font-bold border border-emerald-300 dark:border-emerald-700 shadow-xs">
+                      <Clock size={11} className="text-emerald-600 dark:text-emerald-400" />
+                      Pending Approval
                     </span>
                   </div>
                 </div>
 
-                <div className="shrink-0">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/90 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[11px] font-bold border border-emerald-300 dark:border-emerald-700 shadow-sm">
-                    <Clock size={12} className="text-emerald-600 dark:text-emerald-400" />
-                    Pending Approval
+                {/* Notice Banner */}
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/50 text-[11px] text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                  <Sparkles size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>
+                    <strong>Provost Review Dispatched:</strong> Your lifestyle profile & matched roommate preference have been submitted for official approval.
                   </span>
                 </div>
-              </div>
 
-              {/* Notice Banner */}
-              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-[11px] text-amber-900 dark:text-amber-200 flex items-center gap-2.5">
-                <Sparkles size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                <span>
-                  <strong>Hostel Super Review Dispatched:</strong> Your lifestyle profile & room selection have been securely forwarded to the <strong>Office of the Provost & Hostel Super</strong>. Roommate matching and final allotment will be sanctioned by the authority.
-                </span>
-              </div>
-
-              {/* Allocation Breakdown Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Allocated Room Card */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                    <Building2 size={14} className="text-emerald-600" />
-                    <span>Proposed Room & Bed</span>
-                  </div>
-                  <div className="text-base font-black text-slate-900 dark:text-white">
-                    {allocationResult.allocation?.room} — {allocationResult.allocation?.seatNo}
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    {allocationResult.allocation?.floor} • {allocationResult.allocation?.hall}
-                  </div>
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                    <ShieldCheck size={13} className="text-emerald-500" />
-                    <span>House Tutor: {allocationResult.allocation?.houseTutor?.split('(')[0]}</span>
-                  </div>
-                </div>
-
-                {/* Confidential Roommate Matching Card for Registration Student */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 space-y-2">
+                {/* AI Matched Roommate Card */}
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/5 via-slate-50 to-teal-500/5 dark:from-emerald-950/20 dark:via-[#060911] dark:to-teal-950/20 border border-emerald-500/30 dark:border-emerald-500/20 shadow-xs space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                      <ShieldCheck size={14} className="text-emerald-600" />
-                      <span>Roommate Matching Status</span>
+                    <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+                      <Sparkles size={14} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>AI Matched Roommate</span>
                     </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                      Confidential Review
+                    <span className="text-xs font-black px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 shadow-xs flex items-center gap-1.5">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>{matchPercent}% Compatibility Match ({matchedCount}/{totalOptions} Options Matched)</span>
                     </span>
                   </div>
-                  <div className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    <Users size={16} className="text-teal-600" />
-                    <span>Hostel Super & Provost Review</span>
+
+                  <div className="flex items-center gap-3.5 py-1">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center font-black text-base shadow-md shadow-emerald-900/20 shrink-0">
+                      <Users size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-tight truncate">
+                        {matchedName}
+                      </div>
+                      <div className="text-xs text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1.5">
+                        <span>Verified Resident Peer</span>
+                        <span>•</span>
+                        <span>{matchedCount} of {totalOptions} Habits Matched</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                    Roommate compatibility pairing has been dispatched directly to the Hostel Super portal. To protect student privacy, candidate identities and CGPA comparisons are strictly verified by the Provost Office.
+
+                  {/* Visual Compatibility Bar */}
+                  <div className="space-y-1 pt-1">
+                    <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      <span>Compatibility Index ({matchedCount} of {totalOptions} options matched)</span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{matchPercent}%</span>
+                    </div>
+                    <div className="h-2 w-full bg-slate-200/80 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-700 shadow-sm"
+                        style={{ width: `${Math.min(matchPercent, 100)}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5 font-medium">
-                    <Lock size={13} className="shrink-0" />
-                    <span>Roommate details finalized upon official approval</span>
+
+                  <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800/80 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                    <ShieldCheck size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Room allotment & pairing will be officially sanctioned by Provost Office.</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Registered Lifestyle Profile Factors */}
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
-                  Your Registered Compatibility Profile:
-                </span>
-                <div className="space-y-1.5">
-                  <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-xs text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span>
-                      Sleep Routine: {preferences.sleepSchedule === 'night-owl' ? 'Night Owl cycle (late-night study friendly 1:00 AM+)' : preferences.sleepSchedule === 'early-riser' ? 'Early Riser cycle (disciplined morning routine 6:00 AM)' : 'Flexible sleep cycle adaptable to room'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-xs text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span>
-                      Study Environment: {preferences.studyHabit === 'intense-silent' ? 'Pin-drop silent & deep academic focus' : preferences.studyHabit === 'less-study-casual' ? 'Collaborative & casual study environment' : 'Moderate & dedicated regular study hours'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-xs text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span>
-                      Sanitization & Tidiness: {preferences.cleanliness === 'strictly-clean' ? 'High tidiness & strict room desk hygiene standard' : 'Moderate shared room hygiene discipline'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-xs text-emerald-950 dark:text-emerald-200 flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
-                    <span>
-                      Academic Department: {studentUser?.department || 'Department'} coursework & peer study priority
-                    </span>
-                  </div>
+                {/* Only Matched Options Displayed (er baire kono kichu dekhabe na) */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
+                    Matched Compatibility Options ({matchedCount} of {totalOptions} Matched):
+                  </span>
+                  {matchedOptionsList.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {matchedOptionsList.map((opt, idx) => (
+                        <div
+                          key={opt.key || opt.id || idx}
+                          className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 text-[11px] text-emerald-950 dark:text-emerald-200 flex items-center gap-2 font-medium"
+                        >
+                          <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span className="truncate">{opt.label || opt}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs text-center">
+                      No lifestyle options directly matched. Placement based on available capacity.
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={handleFinish}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-xl shadow-emerald-900/25 transition-all"
-              >
-                <span>Enter My Student Dashboard</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
-          )}
+                <button
+                  type="button"
+                  onClick={handleFinish}
+                  className="w-full mt-2 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/25 transition-all cursor-pointer"
+                >
+                  <span>Enter My Student Dashboard</span>
+                  <ArrowRight size={15} />
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

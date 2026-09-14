@@ -38,9 +38,9 @@ export default function Footer() {
               Official Residential Halls
             </h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="#vacancy" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Padma Residential Hall (Male • Floor 1 & 2)</a></li>
-              <li><a href="#vacancy" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Meghna Residential Hall (Female • Floor 1 & 2)</a></li>
-              <li><a href="#portals" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Floor Teachers (4 House Tutors)</a></li>
+              <li><a href="#vacancy" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Padma Residential Hall (Floor 1 & 2)</a></li>
+              <li><a href="#vacancy" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Live Seat & Room Explorer</a></li>
+              <li><a href="#portals" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Floor Teachers (House Tutors)</a></li>
               <li><a href="#portals" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Provost & Chief Warden Office</a></li>
             </ul>
           </div>
@@ -51,9 +51,9 @@ export default function Footer() {
               Core Capabilities
             </h4>
             <ul className="space-y-2 text-xs">
-              <li><a href="#services" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Smart Searching Roommate</a></li>
-              <li><a href="#services" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">4-Tier Maintenance Chain</a></li>
-              <li><a href="#services" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Night Roll-Call Roster</a></li>
+              <li><a href="#services" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Roommate Matching</a></li>
+              <li><a href="#services" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Maintenance Support</a></li>
+              <li><a href="#services" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Night Attendance</a></li>
               <li><a href="#services" className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">Mess & Dining Tokens</a></li>
             </ul>
           </div>

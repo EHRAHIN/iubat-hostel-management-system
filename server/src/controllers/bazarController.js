@@ -29,7 +29,7 @@ exports.getRequisitions = async (req, res) => {
     const filter = {};
 
     if (hall && hall !== 'all') {
-      filter.hall = { $regex: hall.includes('Meghna') ? 'Meghna' : 'Padma', $options: 'i' };
+      filter.hall = { $regex: 'Padma', $options: 'i' };
     }
     if (type && type !== 'all') filter.requisitionType = type;
     if (status && status !== 'all') filter.status = status;
@@ -481,7 +481,7 @@ exports.getDailyReport = async (req, res) => {
 
     const mealQuery = { date: targetDate };
     if (hall && hall !== 'all') {
-      mealQuery.hall = { $regex: hall.includes('Meghna') ? 'Meghna' : 'Padma', $options: 'i' };
+      mealQuery.hall = { $regex: 'Padma', $options: 'i' };
     }
 
     // 1. Get all meal bookings for this selected date (applied meals count immediately whether collected or not!)
@@ -509,7 +509,7 @@ exports.getDailyReport = async (req, res) => {
     // 2. Get Bazar costs for this selected date
     const bazarQuery = { targetDate };
     if (hall && hall !== 'all') {
-      bazarQuery.hall = { $regex: hall.includes('Meghna') ? 'Meghna' : 'Padma', $options: 'i' };
+      bazarQuery.hall = { $regex: 'Padma', $options: 'i' };
     }
     const dayRequisitions = await BazarRequisition.find(bazarQuery);
 
@@ -581,7 +581,7 @@ exports.getMonthlyReport = async (req, res) => {
       targetDate: { $regex: `^${currentMonthPrefix}` },
     };
     if (hall && hall !== 'all') {
-      filter.hall = { $regex: hall.includes('Meghna') ? 'Meghna' : 'Padma', $options: 'i' };
+      filter.hall = { $regex: 'Padma', $options: 'i' };
     }
 
     const monthRequisitions = await BazarRequisition.find(filter).sort({ targetDate: -1, createdAt: -1 });
@@ -614,7 +614,7 @@ exports.getMonthlyReport = async (req, res) => {
       date: { $regex: `^${currentMonthPrefix}` },
     };
     if (hall && hall !== 'all') {
-      mealFilter.hall = { $regex: hall.includes('Meghna') ? 'Meghna' : 'Padma', $options: 'i' };
+      mealFilter.hall = { $regex: 'Padma', $options: 'i' };
     }
     const monthMeals = await MealBooking.find(mealFilter);
     const countedMeals = monthMeals.filter((m) => m.status !== 'Rejected');

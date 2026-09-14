@@ -63,30 +63,186 @@
               radial-gradient(circle at 100% 50%, rgba(13, 148, 136, 0.12) 0%, transparent 50%);
 }
 
-/* Glassmorphism & SaaS Card System */
-.saas-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+/* ========================================================================= */
+/* System-Wide Apple iOS Liquid Frosted Glass UI Framework                   */
+/* ========================================================================= */
+
+/* Apple iOS Liquid Glass Card / Panel */
+.saas-card,
+.ios-glass,
+.ios-glass-card,
+.dashboard-glass,
+header.rounded-3xl,
+header.rounded-2xl,
+aside > div.rounded-3xl,
+aside > div.rounded-2xl,
+main div.rounded-3xl.bg-white,
+main div.rounded-2xl.bg-white,
+main section.rounded-3xl.bg-white,
+main section.rounded-2xl.bg-white,
+.dark [class*="dark:bg-[#0d121f]"],
+.dark [class*="dark:bg-[#0d1322]"],
+.dark [class*="dark:bg-[#0c1220]"] {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 10px 32px -4px rgba(15, 23, 42, 0.05), 
+              0 4px 12px -2px rgba(15, 23, 42, 0.03), 
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.85) !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease !important;
 }
 
-.dark .saas-card {
-  background: rgba(13, 18, 31, 0.75);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(30, 41, 59, 0.8);
-  box-shadow: 0 4px 25px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+.dark .saas-card,
+.dark .ios-glass,
+.dark .ios-glass-card,
+.dark .dashboard-glass,
+.dark header.rounded-3xl,
+.dark header.rounded-2xl,
+.dark aside > div.rounded-3xl,
+.dark aside > div.rounded-2xl,
+.dark main div.rounded-3xl.bg-white,
+.dark main div.rounded-2xl.bg-white,
+.dark main section.rounded-3xl.bg-white,
+.dark main section.rounded-2xl.bg-white,
+.dark [class*="dark:bg-[#0d121f]"],
+.dark [class*="dark:bg-[#0d1322]"],
+.dark [class*="dark:bg-[#0c1220]"] {
+  background: rgba(13, 18, 31, 0.68) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 14px 40px -6px rgba(0, 0, 0, 0.6), 
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.15) !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
-.saas-card:hover {
-  border-color: rgba(16, 185, 129, 0.4);
-  box-shadow: 0 10px 30px -4px rgba(16, 185, 129, 0.1);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+.saas-card:hover,
+.ios-glass-card:hover,
+.dashboard-glass:hover,
+main div.rounded-3xl.bg-white:hover {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 16px 44px -6px rgba(16, 185, 129, 0.12), 
+              inset 0 1px 1px 0 rgba(255, 255, 255, 0.95) !important;
+  transform: translateY(-2px) translateZ(0);
 }
 
-.dark .saas-card:hover {
-  border-color: rgba(16, 185, 129, 0.4);
-  box-shadow: 0 10px 35px -4px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(16, 185, 129, 0.2);
+.dark .saas-card:hover,
+.dark .ios-glass-card:hover,
+.dark .dashboard-glass:hover,
+.dark main div.rounded-3xl.bg-white:hover,
+.dark [class*="dark:bg-[#0d121f]"]:hover {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  box-shadow: 0 16px 48px -6px rgba(0, 0, 0, 0.75), 
+              inset 0 1px 0 0 rgba(16, 185, 129, 0.25) !important;
+  transform: translateY(-2px) translateZ(0);
+}
+
+/* Apple iOS Liquid Glass Navigation Header */
+.ios-glass-nav {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03) !important;
+}
+
+.dark .ios-glass-nav {
+  background: rgba(6, 9, 17, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Apple iOS Liquid Glass Pills, Buttons & Segmented Controls */
+.ios-glass-pill {
+  background: rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03), inset 0 1px 1px rgba(255, 255, 255, 0.85) !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+.dark .ios-glass-pill {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.ios-glass-pill:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+  transform: scale(1.02) translateZ(0);
+}
+
+.dark .ios-glass-pill:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  transform: scale(1.02) translateZ(0);
+}
+
+/* Apple iOS Modal Sheet - Professional Solid Crisp White & Midnight Navy (Zero Ash Bleed) */
+.ios-glass-modal {
+  background: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.25), 
+              0 0 0 1px rgba(226, 232, 240, 0.6),
+              0 4px 20px -2px rgba(15, 23, 42, 0.08) !important;
+}
+
+.dark .ios-glass-modal {
+  background: #0d121f !important;
+  border: 1px solid rgba(30, 41, 59, 0.9) !important;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.85), 
+              0 0 0 1px rgba(255, 255, 255, 0.08),
+              inset 0 1px 0 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+/* iOS Tactile Tap Response across entire system */
+.ios-tap-active,
+button,
+[role="button"] {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s, border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.ios-tap-active:active,
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.96) !important;
+}
+
+/* iOS Table Styling */
+table thead th {
+  background: rgba(241, 245, 249, 0.65) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.dark table thead th {
+  background: rgba(13, 18, 31, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+table tbody tr:hover {
+  background-color: rgba(16, 185, 129, 0.04) !important;
+}
+
+.dark table tbody tr:hover {
+  background-color: rgba(16, 185, 129, 0.07) !important;
 }
 
 /* Gradient Text */
@@ -137,4 +293,90 @@
 
 .spin {
   animation: spin 1s linear infinite;
+}
+
+/* ========================================================================= */
+/* Comprehensive Print / PDF Styling for Official Receipts & Documents      */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide everything on page by default */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Expose only the receipt or circular modal and its contents */
+  #printable-receipt-modal,
+  #printable-receipt-modal *,
+  #printable-circular-modal,
+  #printable-circular-modal * {
+    visibility: visible !important;
+  }
+
+  #printable-receipt-modal,
+  #printable-circular-modal {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: block !important;
+    z-index: 9999999 !important;
+  }
+
+  #printable-receipt-card,
+  #printable-circular-card {
+    position: relative !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  #printable-receipt,
+  #printable-circular {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 12px 16px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  /* Hide navigation controls, close buttons, print buttons */
+  .print\:hidden,
+  .no-print,
+  button,
+  nav,
+  header {
+    display: none !important;
+  }
 }

@@ -350,11 +350,11 @@ export default function StudentHistoryModal({
               </div>
               <div className="space-y-2">
                 {[
-                  { date: 'Yesterday (Feb 28, 2026)', time: '10:14 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
-                  { date: 'Feb 27, 2026', time: '10:08 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
-                  { date: 'Feb 26, 2026', time: '10:12 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
-                  { date: 'Feb 25, 2026', time: '10:05 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
-                  { date: 'Feb 24, 2026', time: 'N/A', status: 'On Approved Leave', warden: 'Gate Pass Ref Verified' },
+                  { date: 'Yesterday (Sep 13, 2026)', time: '10:14 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
+                  { date: 'Sep 12, 2026', time: '10:08 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
+                  { date: 'Sep 11, 2026', time: '10:12 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
+                  { date: 'Sep 10, 2026', time: '10:05 PM', status: 'Present in Room', warden: 'Floor House Tutor' },
+                  { date: 'Sep 09, 2026', time: 'N/A', status: 'On Approved Leave', warden: 'Gate Pass Ref Verified' },
                 ].map((att, idx) => (
                   <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 flex items-center justify-between">
                     <div>

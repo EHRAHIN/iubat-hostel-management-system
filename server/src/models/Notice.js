@@ -17,17 +17,34 @@ const noticeSchema = new mongoose.Schema(
       enum: ['Allocation', 'Administration', 'Dining', 'Maintenance', 'Academic', 'Discipline'],
       default: 'Administration',
     },
+    targetAudience: {
+      type: String,
+      enum: ['all', 'students', 'teachers', 'staff', 'parents', 'floor-1', 'floor-2'],
+      default: 'all',
+    },
+    targetAudienceLabel: {
+      type: String,
+      default: 'All Residents & Campus',
+    },
     refNo: {
       type: String,
-      required: true, // e.g. 'IUBAT/RO/2026/042'
+      required: true, // e.g. 'IUBAT/PRV/2026/042'
     },
     summary: {
       type: String,
-      required: true,
+      default: '',
+    },
+    content: {
+      type: String,
+      default: '',
     },
     authority: {
       type: String,
       default: 'Office of the Provost',
+    },
+    publishedBy: {
+      type: String,
+      default: 'Prof. Dr. Monirul Islam (Hostel Super / Provost)',
     },
     isPinned: {
       type: Boolean,

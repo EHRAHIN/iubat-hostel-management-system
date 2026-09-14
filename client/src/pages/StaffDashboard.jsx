@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import DailyBazarMealReportSection from '../components/DailyBazarMealReportSection';
+import TargetedNoticesWidget from '../components/TargetedNoticesWidget';
 import { 
+  Bell,
   Wrench, 
   Utensils, 
   Key, 
@@ -37,8 +39,13 @@ import {
   FileText,
   CalendarCheck,
   UserX,
-  ShieldAlert
+  ShieldAlert,
+  Camera,
+  CameraOff,
 } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import DiningPosTerminal from '../components/DiningPosTerminal';
+import CounterPosModal from '../components/CounterPosModal';
 
 export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
   // Determine role & hall from login session
@@ -68,13 +75,14 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
 
   const [workspaceMode] = useState(() => (isDining ? 'dining' : 'maintenance'));
 
-  // Main active tab: 'maintenance', 'meals-queue', 'handover', 'bazar', 'bazar-history', 'token'
+  // Main active tab: 'maintenance', 'meals-queue', 'handover', 'bazar', 'bazar-history', 'token', 'pos'
   const [activeTab, setActiveTab] = useState(() => (isDining ? 'meals-queue' : 'maintenance'));
+  const [isPosModalOpen, setIsPosModalOpen] = useState(false);
 
   useEffect(() => {
-    if (workspaceMode === 'maintenance' && !['maintenance', 'handover'].includes(activeTab)) {
+    if (workspaceMode === 'maintenance' && !['maintenance', 'handover', 'pos', 'token'].includes(activeTab)) {
       setActiveTab('maintenance');
-    } else if (workspaceMode === 'dining' && !['meals-queue', 'student-leaves', 'bazar', 'bazar-history'].includes(activeTab)) {
+    } else if (workspaceMode === 'dining' && !['meals-queue', 'student-leaves', 'bazar', 'bazar-history', 'pos', 'token'].includes(activeTab)) {
       setActiveTab('meals-queue');
     }
   }, [workspaceMode, activeTab]);
@@ -332,15 +340,15 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
   });
 
   const [bazarHistory, setBazarHistory] = useState([
-    { voucher: 'VCH-8812', date: 'Feb 28, 2026', items: 'Chicken, Rice, Dal, Veggies', totalAmount: '15,450 BDT', auditedBy: 'Provost Office', status: 'Approved & Reconciled' },
-    { voucher: 'VCH-8790', date: 'Feb 27, 2026', items: 'Fish, Rice, Soybean Oil, Eggs', totalAmount: '14,880 BDT', auditedBy: 'Provost Office', status: 'Approved & Reconciled' },
+    { voucher: 'VCH-8812', date: 'Sep 13, 2026', items: 'Chicken, Rice, Dal, Veggies', totalAmount: '15,450 BDT', auditedBy: 'Provost Office', status: 'Approved & Reconciled' },
+    { voucher: 'VCH-8790', date: 'Sep 12, 2026', items: 'Fish, Rice, Soybean Oil, Eggs', totalAmount: '14,880 BDT', auditedBy: 'Provost Office', status: 'Approved & Reconciled' },
   ]);
 
   const handleSaveBazarExpense = (e) => {
     e.preventDefault();
     const newEntry = {
       voucher: bazarExpenseForm.voucherNo,
-      date: 'Today (Aug 30, 2026)',
+      date: 'Today (Sep 14, 2026)',
       items: 'Chicken, Fish, Rice, Veggies, Eggs & Spices',
       totalAmount: `${bazarExpenseForm.actualAmount.toLocaleString()} BDT`,
       auditedBy: 'Submitted to Provost Office',
@@ -351,26 +359,262 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
     onShowToast(`Daily Bazar Expense of ${bazarExpenseForm.actualAmount} BDT logged under Voucher #${bazarExpenseForm.voucherNo}!`, 'success');
   };
 
-  // Token Search State
+  // Token Search & QR Scanner State
   const [tokenSearchId, setTokenSearchId] = useState('');
   const [tokenVerifyResult, setTokenVerifyResult] = useState(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+  const [scannerInstance, setScannerInstance] = useState(null);
+  const [selectedDemoToken, setSelectedDemoToken] = useState('');
+
+  // Process any scanned or entered QR / Code string
+  const handleProcessQrData = async (rawCode) => {
+    if (!rawCode) return;
+    const trimmed = rawCode.trim();
+
+    let payload = null;
+    try {
+      payload = JSON.parse(trimmed);
+    } catch {
+      payload = { raw: trimmed };
+    }
+
+    // 1. MEAL TOKEN QR
+    if (payload.type === 'MEAL_TOKEN' || payload.bookingId || trimmed.startsWith('MEL-')) {
+      const bookingId = payload.bookingId || trimmed;
+      const studentId = payload.studentId;
+
+      try {
+        const res = await api.verifyMealQrToken({
+          bookingId,
+          studentId,
+          tokenCode: trimmed,
+          staffName: staff.name,
+        });
+
+        if (res?.alreadyCollected) {
+          setTokenVerifyResult({
+            type: 'meal',
+            isSuccess: false,
+            isAlreadyCollected: true,
+            status: 'ALREADY COLLECTED',
+            name: res.data?.studentName || payload.studentName || 'Student',
+            id: res.data?.studentId || payload.studentId || bookingId,
+            mealType: res.data?.mealType || payload.mealType || 'Meal',
+            date: res.data?.date || payload.date || 'Today',
+            collectedAt: res.data?.collectedAt ? new Date(res.data.collectedAt).toLocaleTimeString() : 'Earlier',
+            collectedByStaff: res.data?.collectedByStaff || 'Dining Staff',
+            message: res.message || 'Warning: This meal was already collected earlier!',
+          });
+          onShowToast('⚠️ Warning: Meal token was already collected!', 'error');
+        } else if (res?.success && res?.data) {
+          setTokenVerifyResult({
+            type: 'meal',
+            isSuccess: true,
+            isAlreadyCollected: false,
+            status: 'HANDOVER CONFIRMED',
+            name: res.data.studentName,
+            id: res.data.studentId,
+            mealType: res.data.mealType,
+            date: res.data.date || 'Today',
+            tokenCostBDT: res.data.tokenCostBDT || 50,
+            collectedAt: new Date().toLocaleTimeString(),
+            collectedByStaff: staff.name,
+            message: `Food handover confirmed! ${res.data.mealType} meal delivered to ${res.data.studentName}.`,
+          });
+          onShowToast(`✅ ${res.data.mealType} handed over to ${res.data.studentName}!`, 'success');
+          fetchMealBookings();
+        } else {
+          onShowToast(res?.message || 'Failed to verify token.', 'error');
+        }
+      } catch (err) {
+        // Local in-memory fallback
+        const local = mealBookings.find(b => b.bookingId === bookingId || b._id === bookingId || (studentId && b.studentId === studentId));
+        if (local) {
+          if (local.foodCollected || local.status === 'Approved & Served') {
+            setTokenVerifyResult({
+              type: 'meal',
+              isSuccess: false,
+              isAlreadyCollected: true,
+              status: 'ALREADY COLLECTED',
+              name: local.studentName,
+              id: local.studentId,
+              mealType: local.mealType,
+              date: local.date || 'Today',
+              collectedAt: local.collectedAt ? new Date(local.collectedAt).toLocaleTimeString() : 'Earlier',
+              collectedByStaff: local.collectedByStaff || staff.name,
+              message: `⚠️ ALREADY COLLECTED: This ${local.mealType} meal was already collected by ${local.studentName}!`,
+            });
+            onShowToast('⚠️ This meal was already collected!', 'error');
+          } else {
+            handleApproveMeal(local.bookingId || local._id);
+            setTokenVerifyResult({
+              type: 'meal',
+              isSuccess: true,
+              isAlreadyCollected: false,
+              status: 'HANDOVER CONFIRMED',
+              name: local.studentName,
+              id: local.studentId,
+              mealType: local.mealType,
+              date: local.date || 'Today',
+              tokenCostBDT: local.tokenCostBDT || 50,
+              collectedAt: new Date().toLocaleTimeString(),
+              collectedByStaff: staff.name,
+              message: `Food handover confirmed! Delivered ${local.mealType} to ${local.studentName}.`,
+            });
+          }
+        } else {
+          onShowToast(err.message || 'Token verification failed.', 'error');
+        }
+      }
+      return;
+    }
+
+    // 2. GATE PASS QR
+    if (payload.type === 'GATE_PASS' || payload.qrCode || trimmed.startsWith('IUBAT-QR-') || trimmed.startsWith('LP-')) {
+      const passId = payload.passId || trimmed;
+      const qrCode = payload.qrCode || trimmed;
+
+      try {
+        const res = await api.verifyGatePassQr({
+          passId,
+          qrCode,
+          guardName: staff.name,
+        });
+
+        if (res?.notApproved) {
+          setTokenVerifyResult({
+            type: 'gatepass',
+            isSuccess: false,
+            status: 'EXIT DENIED (NOT APPROVED)',
+            name: res.data?.studentName || payload.studentName || 'Student',
+            id: res.data?.studentId || payload.studentId || passId,
+            hall: res.data?.hall || 'Padma Hall',
+            room: res.data?.room || 'Room 104',
+            message: res.message || 'Gate pass has not received required approvals.',
+          });
+          onShowToast('⛔ Gate Exit Denied: Pass is pending approval!', 'error');
+        } else if (res?.success && res?.data) {
+          setTokenVerifyResult({
+            type: 'gatepass',
+            isSuccess: true,
+            status: res.alreadyCheckedOut ? 'ALREADY CHECKED OUT' : 'EXIT AUTHORIZED',
+            name: res.data.studentName,
+            id: res.data.studentId,
+            hall: res.data.hall,
+            room: res.data.room,
+            dates: res.data.dates || `${res.data.fromDate || ''} - ${res.data.toDate || ''}`,
+            destination: res.data.destination,
+            message: res.message,
+          });
+          onShowToast(`✅ Student ${res.data.studentName} gate exit authorized!`, 'success');
+        }
+      } catch (err) {
+        onShowToast(err.message || 'Failed to verify gate pass.', 'error');
+      }
+      return;
+    }
+
+    // 3. Fallback: Search by Student ID
+    const studentApp = mealBookings.find(b => b.studentId === trimmed);
+    if (studentApp) {
+      if (studentApp.foodCollected || studentApp.status === 'Approved & Served') {
+        setTokenVerifyResult({
+          type: 'meal',
+          isSuccess: false,
+          isAlreadyCollected: true,
+          status: 'ALREADY COLLECTED',
+          name: studentApp.studentName,
+          id: trimmed,
+          mealType: studentApp.mealType,
+          date: studentApp.date || 'Today',
+          collectedAt: studentApp.collectedAt ? new Date(studentApp.collectedAt).toLocaleTimeString() : 'Earlier',
+          collectedByStaff: studentApp.collectedByStaff || 'Dining Staff',
+          message: `⚠️ Student ${studentApp.studentName} already received their ${studentApp.mealType} meal.`,
+        });
+        onShowToast('⚠️ Student already collected this meal!', 'error');
+      } else {
+        handleApproveMeal(studentApp.bookingId || studentApp._id);
+        setTokenVerifyResult({
+          type: 'meal',
+          isSuccess: true,
+          isAlreadyCollected: false,
+          status: 'HANDOVER CONFIRMED',
+          name: studentApp.studentName,
+          id: trimmed,
+          mealType: studentApp.mealType,
+          date: studentApp.date || 'Today',
+          tokenCostBDT: studentApp.tokenCostBDT || 50,
+          collectedAt: new Date().toLocaleTimeString(),
+          collectedByStaff: staff.name,
+          message: `Food handover confirmed for ${studentApp.mealType}!`,
+        });
+      }
+    } else {
+      setTokenVerifyResult({
+        type: 'general',
+        isSuccess: true,
+        status: 'Valid Dining Resident Pass',
+        name: trimmed === '22203188' ? 'Emdadul Haque Rahin' : 'Tanvir Hasan',
+        id: trimmed,
+        hall: staff.assignedHall,
+        monthlyClearance: 'Paid in Full (Clearance Active)',
+      });
+      onShowToast(`Student record verified for ${trimmed}.`, 'success');
+    }
+  };
 
   const handleVerifyStudentToken = (e) => {
     e.preventDefault();
     if (!tokenSearchId.trim()) return;
-
-    const query = tokenSearchId.trim();
-    const studentApp = mealBookings.find(b => b.studentId === query && b.status === 'Approved & Served');
-
-    setTokenVerifyResult({
-      name: studentApp?.studentName || (query === '22203188' ? 'Emdadul Haque Rahin' : 'Tanvir Hasan'),
-      id: query,
-      hall: staff.assignedHall,
-      status: studentApp ? 'Approved Meal Token Active' : 'Valid Dining Resident Pass',
-      monthlyClearance: 'Paid in Full (Clearance Active)',
-    });
-    onShowToast(`Student Token verified for ${query}.`, 'success');
+    handleProcessQrData(tokenSearchId);
   };
+
+  // Camera Scanner Lifecycle
+  const startCameraScanner = async () => {
+    setCameraError('');
+    setIsCameraActive(true);
+    // Allow DOM node #staff-qr-reader to mount first
+    setTimeout(async () => {
+      try {
+        const html5Qr = new Html5Qrcode("staff-qr-reader");
+        setScannerInstance(html5Qr);
+        await html5Qr.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 230, height: 230 } },
+          (decodedText) => {
+            handleProcessQrData(decodedText);
+          },
+          () => {} // frame read errors
+        );
+      } catch (err) {
+        setCameraError(err.message || 'Unable to access camera on this device. You may use Demo Scan or Manual Input below.');
+        setIsCameraActive(false);
+      }
+    }, 150);
+  };
+
+  const stopCameraScanner = async () => {
+    if (scannerInstance) {
+      try {
+        if (scannerInstance.isScanning) {
+          await scannerInstance.stop();
+        }
+        scannerInstance.clear();
+      } catch (e) {
+        console.warn(e);
+      }
+      setScannerInstance(null);
+    }
+    setIsCameraActive(false);
+  };
+
+  // Cleanup camera if user switches tabs
+  useEffect(() => {
+    if (activeTab !== 'token' && isCameraActive) {
+      stopCameraScanner();
+    }
+  }, [activeTab]);
 
   const pendingMealCount = mealBookings.filter(b => b.status === 'Pending Approval').length;
   const approvedMealCount = mealBookings.filter(b => b.status === 'Approved & Served').length;
@@ -381,17 +625,13 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
       
       {/* 1. Header Profile Banner & Workspace Switcher */}
-      <div className="rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200/90 dark:border-slate-800/90 p-6 md:p-8 shadow-xl mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="ios-glass-card rounded-3xl p-6 md:p-8 mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               🏛️ {staff.assignedHall}
             </span>
-            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-              workspaceMode === 'dining'
-                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-            }`}>
+            <span className="ios-glass-pill text-[11px] font-bold px-3 py-1 rounded-full text-emerald-700 dark:text-emerald-300">
               {workspaceMode === 'dining' ? '🍲 Central Dining & Mess Staff Division' : '🛠️ Hall Maintenance & Engineering Division'}
             </span>
           </div>
@@ -409,7 +649,7 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
           {workspaceMode === 'maintenance' ? (
             <button
               onClick={() => setNewIssueModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white shadow-md transition-colors"
+              className="ios-tap-active flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-700/25 border border-white/20 transition-all cursor-pointer"
             >
               <Plus size={14} />
               <span>+ Log Maintenance Repair</span>
@@ -417,7 +657,7 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
           ) : (
             <button
               onClick={() => setBazarExpenseModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white shadow-md transition-colors"
+              className="ios-tap-active flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-700/25 border border-white/20 transition-all cursor-pointer"
             >
               <Receipt size={14} />
               <span>+ Log Daily Bazar Expense</span>
@@ -426,7 +666,7 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/60 dark:hover:text-red-300 text-slate-700 dark:text-slate-300 transition-colors"
+            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -599,15 +839,15 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
       </div>
 
       {/* Navigation Tabs tailored per Workspace */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto text-xs font-semibold mb-6">
+      <div className="ios-glass p-1.5 rounded-2xl flex items-center gap-1 overflow-x-auto text-xs font-semibold mb-6 scrollbar-none">
         {workspaceMode === 'maintenance' ? (
           <>
             <button
               onClick={() => { setActiveTab('maintenance'); setIssueFilter('all'); }}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+              className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'maintenance'
-                  ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
               }`}
             >
               <Wrench size={15} />
@@ -616,10 +856,10 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
 
             <button
               onClick={() => setActiveTab('handover')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+              className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'handover'
-                  ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
               }`}
             >
               <Clock size={15} />
@@ -629,11 +869,23 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
         ) : (
           <>
             <button
+              onClick={() => setActiveTab('pos')}
+              className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                activeTab === 'pos' || activeTab === 'token'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
+              }`}
+            >
+              <QrCode size={15} />
+              <span>🖥️ Dining POS Counter & Scanner</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('meals-queue')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+              className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'meals-queue'
-                  ? 'bg-emerald-700 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
               }`}
             >
               <Utensils size={15} />
@@ -642,10 +894,10 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
 
             <button
               onClick={() => setActiveTab('student-leaves')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+              className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'student-leaves'
-                  ? 'bg-red-700 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
               }`}
             >
               <LogOut size={15} />
@@ -654,10 +906,10 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
 
             <button
               onClick={() => setActiveTab('bazar')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+              className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'bazar'
-                  ? 'bg-amber-700 text-white shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
               }`}
             >
               <ShoppingBag size={15} />
@@ -666,10 +918,10 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
 
             <button
               onClick={() => setActiveTab('bazar-history')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+              className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === 'bazar-history'
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
               }`}
             >
               <Receipt size={15} />
@@ -677,6 +929,18 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
             </button>
           </>
         )}
+
+        <button
+          onClick={() => setActiveTab('notices')}
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'notices'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
+          }`}
+        >
+          <Bell size={15} />
+          <span>📢 Provost Directives & Circulars</span>
+        </button>
       </div>
 
       {/* ========================================================================= */}
@@ -696,17 +960,67 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
             
             <button
               onClick={() => setNewIssueModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs shadow-md transition-all shrink-0"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-semibold text-xs shadow-md transition-all shrink-0 cursor-pointer"
             >
               <Plus size={14} />
               <span>+ Log Work Order</span>
             </button>
           </div>
 
+          {/* Category Filter Pills for Staff */}
+          <div className="flex flex-wrap items-center gap-2 pb-1 text-xs font-semibold">
+            {[
+              { id: 'all', label: 'All Categories', icon: '🛠️' },
+              { id: 'Electrical', label: 'Electricity', icon: '⚡' },
+              { id: 'Network', label: 'Internet / Wi-Fi', icon: '🌐' },
+              { id: 'Plumbing', label: 'Plumbing & Water', icon: '🚰' },
+              { id: 'Furniture', label: 'Furniture & Locks', icon: '🚪' },
+            ].map((cat) => {
+              const count = cat.id === 'all'
+                ? workOrders.filter(w => w.assignedStaff && !w.assignedStaff.includes('Pending')).length
+                : workOrders.filter(w => {
+                    const isAssigned = w.assignedStaff && !w.assignedStaff.includes('Pending');
+                    if (!isAssigned) return false;
+                    const wCat = (w.category || '').toLowerCase();
+                    if (cat.id === 'Electrical') return wCat.includes('electr');
+                    if (cat.id === 'Network') return wCat.includes('net') || wCat.includes('wi-fi');
+                    if (cat.id === 'Plumbing') return wCat.includes('plumb') || wCat.includes('water');
+                    if (cat.id === 'Furniture') return wCat.includes('furn') || wCat.includes('lock') || wCat.includes('bed');
+                    return wCat === cat.id.toLowerCase();
+                  }).length;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setIssueFilter(cat.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                    issueFilter === cat.id
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white dark:bg-[#0d121f] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    issueFilter === cat.id ? 'bg-blue-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           {(() => {
             const delegatedTickets = workOrders.filter((w) => {
               const isAssigned = w.assignedStaff && !w.assignedStaff.includes('Pending');
-              return isAssigned && (issueFilter === 'all' || w.category === issueFilter);
+              if (!isAssigned) return false;
+              if (issueFilter === 'all') return true;
+              const wCat = (w.category || '').toLowerCase();
+              if (issueFilter === 'Electrical') return wCat.includes('electr');
+              if (issueFilter === 'Network') return wCat.includes('net') || wCat.includes('wi-fi');
+              if (issueFilter === 'Plumbing') return wCat.includes('plumb') || wCat.includes('water');
+              if (issueFilter === 'Furniture') return wCat.includes('furn') || wCat.includes('lock') || wCat.includes('bed');
+              return wCat === issueFilter.toLowerCase();
             });
 
             if (delegatedTickets.length === 0) {
@@ -728,9 +1042,11 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
                 {delegatedTickets.map((ticket) => {
                   const ticketId = ticket.ticketId || ticket.id || ticket._id;
                   const isResolved = ticket.status?.includes('Resolved');
-                  const isElectrical = ticket.category === 'Electrical';
-                  const isNet = ticket.category?.includes('Net') || ticket.category?.includes('Wi-Fi');
-                  const isWater = ticket.category?.includes('Water');
+                  const catLower = (ticket.category || '').toLowerCase();
+                  const isElectrical = catLower.includes('electr');
+                  const isNet = catLower.includes('net') || catLower.includes('wi-fi');
+                  const isWater = catLower.includes('plumb') || catLower.includes('water');
+                  const isFurniture = catLower.includes('furn') || catLower.includes('lock') || catLower.includes('bed');
 
                   return (
                     <div 
@@ -744,15 +1060,16 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
                               isElectrical
                                 ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
                                 : isNet
-                                ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
-                                : isWater
                                 ? 'bg-blue-50 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                                : isWater
+                                ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800'
                                 : 'bg-purple-50 dark:bg-purple-950/70 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800'
                             }`}>
                               {isElectrical && <Zap size={17} />}
                               {isNet && <Wifi size={17} />}
                               {isWater && <Droplets size={17} />}
-                              {!isElectrical && !isNet && !isWater && <Key size={17} />}
+                              {isFurniture && <Key size={17} />}
+                              {!isElectrical && !isNet && !isWater && !isFurniture && <Wrench size={17} />}
                             </div>
                             <div>
                               <span className="font-bold text-slate-900 dark:text-white text-sm block">
@@ -867,6 +1184,15 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
               </div>
 
               <div className="flex items-center gap-2 text-xs font-semibold shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsPosModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-[#037a5b] hover:bg-[#02674d] text-white font-bold text-xs flex items-center gap-2 shadow-md shadow-emerald-700/20 transition-all cursor-pointer whitespace-nowrap"
+                >
+                  <QrCode size={15} />
+                  <span>📷 POS Scanner</span>
+                </button>
+
                 <span className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono">
                   {mealBookings.length} Applied & Counted
                 </span>
@@ -1407,56 +1733,29 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 6: DINING TOKEN SCANNER                                               */}
+      {/* TAB 6: DINING COUNTER POS TERMINAL & QR SCANNER                           */}
       {/* ========================================================================= */}
-      {activeTab === 'token' && (
-        <div className="space-y-6">
-          <div className="p-6 md:p-8 rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-sm max-w-xl mx-auto space-y-4 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center mx-auto">
-              <QrCode size={28} />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Dining Hall Entry Token Scanner
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Enter Student ID or scan student digital meal token at entrance.
-              </p>
-            </div>
+      {(activeTab === 'pos' || activeTab === 'token') && (
+        <DiningPosTerminal
+          staff={staff}
+          mealBookings={mealBookings}
+          onApproveMeal={handleApproveMeal}
+          fetchMealBookings={fetchMealBookings}
+          onShowToast={onShowToast}
+          studentsOnLeave={studentsOnLeave}
+        />
+      )}
 
-            <form onSubmit={handleVerifyStudentToken} className="flex gap-2">
-              <input
-                type="text"
-                value={tokenSearchId}
-                onChange={(e) => setTokenSearchId(e.target.value)}
-                placeholder="Enter Student ID (e.g. 22203188)"
-                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-amber-600 text-xs font-mono"
-              />
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-semibold text-xs shadow-md transition-colors"
-              >
-                Verify Token
-              </button>
-            </form>
-
-            {tokenVerifyResult && (
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-left space-y-2 text-xs animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 dark:text-white">{tokenVerifyResult.name}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-700 text-white">
-                    {tokenVerifyResult.status}
-                  </span>
-                </div>
-                <div className="text-slate-600 dark:text-slate-300">
-                  ID: <strong>{tokenVerifyResult.id}</strong> • {tokenVerifyResult.hall}
-                </div>
-                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold pt-1 border-t border-emerald-200/60 dark:border-emerald-800/60">
-                  {tokenVerifyResult.monthlyClearance}
-                </div>
-              </div>
-            )}
-          </div>
+      {/* ========================================================================= */}
+      {/* TAB: PROVOST DIRECTIVES & CIRCULARS                                       */}
+      {/* ========================================================================= */}
+      {activeTab === 'notices' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <TargetedNoticesWidget
+            role="staff"
+            title="Official Provost Operational Directives for Staff"
+            subtitle="Administrative circulars, operational instructions, duty rosters, and guidelines issued by Hostel Super."
+          />
         </div>
       )}
 
@@ -1672,6 +1971,18 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
           </div>
         </div>
       )}
+
+      {/* Counter POS QR Scanner Modal (Matching user screenshot) */}
+      <CounterPosModal
+        isOpen={isPosModalOpen}
+        onClose={() => setIsPosModalOpen(false)}
+        staff={staff}
+        mealBookings={mealBookings}
+        onApproveMeal={handleApproveMeal}
+        fetchMealBookings={fetchMealBookings}
+        onShowToast={onShowToast}
+        studentsOnLeave={studentsOnLeave}
+      />
 
     </div>
   );

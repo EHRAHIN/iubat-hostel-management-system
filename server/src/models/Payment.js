@@ -47,7 +47,7 @@ const paymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Paid', 'Pending', 'Due', 'Failed', 'Canceled'],
+      enum: ['Paid', 'Pending', 'Due', 'Failed', 'Canceled', 'Refunded'],
       default: 'Pending',
     },
     paymentMethod: {
@@ -93,6 +93,78 @@ const paymentSchema = new mongoose.Schema(
         amount: Number,
       },
     ],
+    paymentDetails: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    // SSLCommerz & Tenant Booking Compatibility Fields
+    paymentStatus: {
+      type: String,
+      default: 'pending',
+    },
+    bookingStatus: {
+      type: String,
+      default: 'confirmed',
+    },
+    payAbleAmount: {
+      type: Number,
+    },
+    tenantName: {
+      type: String,
+      default: '',
+    },
+    tenantEmail: {
+      type: String,
+      default: '',
+    },
+    tenantPhone: {
+      type: String,
+      default: '',
+    },
+    bookingId: {
+      type: String,
+      default: '',
+    },
+    checkInDate: {
+      type: Date,
+      default: null,
+    },
+    advanceMonths: {
+      type: Number,
+      default: 1,
+    },
+    user_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    owner_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    mess_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Room',
+    },
+    adminNotes: {
+      type: String,
+      default: '',
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+    refundReason: {
+      type: String,
+      default: '',
+    },
+    refundedAt: {
+      type: Date,
+      default: null,
+    },
+    refundedBy: {
+      type: String,
+      default: '',
+    },
     paidAt: {
       type: Date,
       default: null,
@@ -103,4 +175,29 @@ const paymentSchema = new mongoose.Schema(
   }
 );
 
+// Synchronize status and paymentStatus before validation
+paymentSchema.pre('save', function (next) {
+  if (this.paymentStatus === 'paid' && this.status !== 'Paid') {
+    this.status = 'Paid';
+  } else if (this.status === 'Paid' && this.paymentStatus !== 'paid') {
+    this.paymentStatus = 'paid';
+  } else if (this.paymentStatus === 'failed' && this.status !== 'Failed') {
+    this.status = 'Failed';
+  } else if (this.paymentStatus === 'cancelled' && this.status !== 'Canceled') {
+    this.status = 'Canceled';
+  }
+
+  if (this.amountBDT && !this.payAbleAmount) {
+    this.payAbleAmount = this.amountBDT;
+  }
+  if (!this.amountBDT && this.payAbleAmount) {
+    this.amountBDT = this.payAbleAmount;
+  }
+  if (!this.tenantName && this.studentName) {
+    this.tenantName = this.studentName;
+  }
+  next();
+});
+
 module.exports = mongoose.model('Payment', paymentSchema);
+

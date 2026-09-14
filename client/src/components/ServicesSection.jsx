@@ -14,14 +14,14 @@ import {
 export default function ServicesSection() {
   const services = [
     {
-      title: 'Smart Searching Roommate',
-      description: 'Multi-vector lifestyle matching evaluating sleep schedules, study intensity, cleanliness, religious routines, and department preferences.',
+      title: 'Roommate Matching',
+      description: 'Matching students based on sleep hours, study routines, cleanliness, and personal preferences for a peaceful room experience.',
       icon: Sparkles,
-      tag: 'AI Algorithm',
+      tag: 'Smart Matching',
     },
     {
-      title: '4-Tier Maintenance Chain',
-      description: 'Zero-drop ticket custody from student submission to House Tutor physical inspection, Provost delegation, and staff work order resolution.',
+      title: 'Quick Maintenance Support',
+      description: 'Easy complaint resolution from student request to tutor review, provost approval, and prompt staff repair.',
       icon: Wrench,
       tag: 'Governance',
     },

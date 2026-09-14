@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && (rm -rf public && cp -r dist public || true)",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,7 +13,9 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.475.0",
+    "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwindcss": "^4.3.3",

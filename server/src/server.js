@@ -13,9 +13,12 @@ connectDB();
 
 const app = express();
 
+const path = require('path');
+const fs = require('fs');
+
 // Middleware
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: true,
   credentials: true,
 }));
 app.use(express.json());
@@ -37,19 +40,20 @@ app.use('/api/complaints', require('./routes/complaintRoutes'));
 app.use('/api/gatepass', require('./routes/gatePassRoutes'));
 app.use('/api/mess', require('./routes/messRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/payment', require('./routes/paymentRoutes'));
 app.use('/api/notices', require('./routes/noticeRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/seed', require('./routes/seedRoutes'));
 app.use('/api/items', require('./routes/itemRoutes'));
 app.use('/api/bazar', require('./routes/bazarRoutes'));
 
-// Root API Directory
-app.get('/', (req, res) => {
+// API Directory Endpoint
+const apiDirectoryHandler = (req, res) => {
   res.json({
     name: 'IUBAT Smart Hall & Residential Management System API',
     version: '1.0.0',
     status: 'online',
-    database: 'MongoDB Atlas Connected',
+    database: 'MongoDB Connected',
     endpoints: {
       health: '/api/health',
       analytics: '/api/analytics/summary',
@@ -64,11 +68,35 @@ app.get('/', (req, res) => {
       complaints: '/api/complaints',
       gatePass: '/api/gatepass',
       mess: '/api/mess/menu',
+      bazar: '/api/bazar/requisitions',
       notices: '/api/notices',
       seed: '/api/seed',
     },
   });
-});
+};
+
+app.get('/api', apiDirectoryHandler);
+
+// Connect and Serve Client Build (Production / Full-Stack mode)
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+const rootDistPath = path.resolve(__dirname, '../../dist');
+const distPath = fs.existsSync(clientDistPath) ? clientDistPath : (fs.existsSync(rootDistPath) ? rootDistPath : null);
+
+if (distPath) {
+  console.log(`📦 Serving connected client build from: ${distPath}`);
+  app.use(express.static(distPath));
+
+  // SPA fallback for all non-API GET requests
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api') || req.originalUrl.startsWith('/payment')) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+} else {
+  // If client is not yet built, serve API directory on root
+  app.get('/', apiDirectoryHandler);
+}
 
 // Error handling middleware
 app.use(notFound);

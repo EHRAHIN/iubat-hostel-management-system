@@ -202,6 +202,11 @@ export default function PortalLoginModal({
       return;
     }
 
+    if (!registerData.guardianName || !registerData.guardianName.trim() || !registerData.guardianPhone || !registerData.guardianPhone.trim()) {
+      setErrorMsg('Guardian Name and Guardian Emergency Phone are mandatory fields.');
+      return;
+    }
+
     if (registerData.password !== registerData.confirmPassword) {
       setErrorMsg('Passwords do not match. Please verify.');
       return;
@@ -278,8 +283,8 @@ export default function PortalLoginModal({
   const currentRoleObj = roles.find((r) => r.id === selectedRole) || roles[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="w-full max-w-lg my-8 rounded-3xl bg-white dark:bg-[#0d1322] border border-slate-200/90 dark:border-slate-800/90 shadow-2xl overflow-hidden transition-all">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in overflow-y-auto">
+      <div className="ios-glass-modal w-full max-w-2xl my-8 rounded-3xl overflow-hidden transition-all bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-2xl">
 
         <div className="relative px-6 pt-6 pb-5 bg-gradient-to-r from-emerald-800 via-emerald-700 to-teal-800 dark:from-emerald-950 dark:via-[#0c1a24] dark:to-slate-900 text-white border-b border-emerald-600/30">
           <div className="flex items-start justify-between">
@@ -310,7 +315,7 @@ export default function PortalLoginModal({
             </button>
           </div>
 
-          <div className="flex items-center gap-2 mt-5 p-1 bg-black/20 backdrop-blur-sm rounded-xl border border-white/10">
+          <div className="flex items-center gap-2 mt-5 p-1 bg-black/25 backdrop-blur-sm rounded-xl border border-white/10">
             <button
               type="button"
               onClick={() => {
@@ -344,7 +349,7 @@ export default function PortalLoginModal({
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 sm:p-7 bg-white dark:bg-[#0d121f]">
 
           {errorMsg && (
             <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800/80 text-red-700 dark:text-red-300 text-xs flex items-center gap-2 animate-fade-in">
@@ -412,7 +417,10 @@ export default function PortalLoginModal({
                   {selectedRole === 'student' && (
                     <button
                       type="button"
-                      onClick={() => setCredentials({ username: 'student.cse@iubat.edu', password: '123456', rememberMe: true })}
+                      onClick={() => {
+                        setErrorMsg('');
+                        setCredentials({ username: 'student.cse@iubat.edu', password: '123456', rememberMe: true });
+                      }}
                       className="w-full text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-xs font-semibold flex items-center justify-between text-slate-800 dark:text-slate-200 transition-colors shadow-xs"
                     >
                       <span>🎓 Student: Tanvir Hasan (221004128)</span>
@@ -424,14 +432,20 @@ export default function PortalLoginModal({
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setCredentials({ username: 'tutor.padma1@iubat.edu', password: '123456', rememberMe: true })}
+                        onClick={() => {
+                          setErrorMsg('');
+                          setCredentials({ username: 'tutor.padma1@iubat.edu', password: '123456', rememberMe: true });
+                        }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
                         <span>👨‍🏫 Dr. Tariqul (Fl 1)</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setCredentials({ username: 'tutor.padma2@iubat.edu', password: '123456', rememberMe: true })}
+                        onClick={() => {
+                          setErrorMsg('');
+                          setCredentials({ username: 'tutor.padma2@iubat.edu', password: '123456', rememberMe: true });
+                        }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
                         <span>👨‍🏫 Prof. Anisur (Fl 2)</span>
@@ -442,7 +456,10 @@ export default function PortalLoginModal({
                   {selectedRole === 'super' && (
                     <button
                       type="button"
-                      onClick={() => setCredentials({ username: 'provost@iubat.edu', password: '123456', rememberMe: true })}
+                      onClick={() => {
+                        setErrorMsg('');
+                        setCredentials({ username: 'provost@iubat.edu', password: '123456', rememberMe: true });
+                      }}
                       className="w-full text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-xs font-semibold flex items-center justify-between text-slate-800 dark:text-slate-200 transition-colors shadow-xs"
                     >
                       <span>🏛️ Hostel Super / Provost: Prof. Dr. Monirul Islam</span>
@@ -454,14 +471,20 @@ export default function PortalLoginModal({
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => setCredentials({ username: 'maintenance.padma@iubat.edu', password: '123456', rememberMe: true })}
+                        onClick={() => {
+                          setErrorMsg('');
+                          setCredentials({ username: 'maintenance.padma@iubat.edu', password: '123456', rememberMe: true });
+                        }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
                         <span>🛠️ Maintenance Staff</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setCredentials({ username: 'dining.padma@iubat.edu', password: '123456', rememberMe: true })}
+                        onClick={() => {
+                          setErrorMsg('');
+                          setCredentials({ username: 'dining.padma@iubat.edu', password: '123456', rememberMe: true });
+                        }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
                         <span>🍽️ Dining Staff</span>
@@ -472,7 +495,10 @@ export default function PortalLoginModal({
                   {selectedRole === 'parent' && (
                     <button
                       type="button"
-                      onClick={() => setCredentials({ username: '221004128', password: '123456', rememberMe: true })}
+                      onClick={() => {
+                        setErrorMsg('');
+                        setCredentials({ username: '221004128', password: '123456', rememberMe: true });
+                      }}
                       className="w-full text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-xs font-semibold flex items-center justify-between text-slate-800 dark:text-slate-200 transition-colors shadow-xs"
                     >
                       <span>👨‍👦 Guardian of Tanvir (Student ID: 221004128)</span>
@@ -483,7 +509,10 @@ export default function PortalLoginModal({
                   {selectedRole === 'admin' && (
                     <button
                       type="button"
-                      onClick={() => setCredentials({ username: 'admin.it@iubat.edu', password: '123456', rememberMe: true })}
+                      onClick={() => {
+                        setErrorMsg('');
+                        setCredentials({ username: 'admin.it@iubat.edu', password: '123456', rememberMe: true });
+                      }}
                       className="w-full text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-xs font-semibold flex items-center justify-between text-slate-800 dark:text-slate-200 transition-colors shadow-xs"
                     >
                       <span>👑 Super Admin (Engr. Mahbubur Rahman)</span>
@@ -500,9 +529,12 @@ export default function PortalLoginModal({
                     <input
                       type="text"
                       value={credentials.username}
-                      onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                      onChange={(e) => {
+                        setErrorMsg('');
+                        setCredentials({ ...credentials, username: e.target.value });
+                      }}
                       placeholder={currentRoleObj.placeholder}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 dark:focus:border-emerald-500 transition-colors font-mono"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono text-xs"
                       required
                     />
                   </div>
@@ -526,9 +558,12 @@ export default function PortalLoginModal({
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={credentials.password}
-                      onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                      onChange={(e) => {
+                        setErrorMsg('');
+                        setCredentials({ ...credentials, password: e.target.value });
+                      }}
                       placeholder="••••••••"
-                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 dark:focus:border-emerald-500 transition-colors"
+                      className="w-full px-3.5 py-2.5 pr-10 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs"
                       required
                     />
                     <button
@@ -595,7 +630,7 @@ export default function PortalLoginModal({
                     value={registerData.name}
                     onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
                     placeholder="e.g. EMDADUL HAQUE RAHIN"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                     required
                   />
                 </div>
@@ -609,7 +644,7 @@ export default function PortalLoginModal({
                     value={registerData.email}
                     onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                     placeholder="e.g. emdadulrahin420@gmail.com"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                     required
                   />
                 </div>
@@ -627,7 +662,7 @@ export default function PortalLoginModal({
                     onChange={(e) => setRegisterData({ ...registerData, userId: e.target.value })}
                     placeholder="e.g. 22203188"
                     required
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                   />
                 </div>
 
@@ -638,7 +673,7 @@ export default function PortalLoginModal({
                   <select
                     value={registerData.department}
                     onChange={(e) => setRegisterData({ ...registerData, department: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs cursor-pointer"
                   >
                     <option value="CSE">Computer Science & Engineering (CSE)</option>
                     <option value="EEE">Electrical & Electronic Engineering (EEE)</option>
@@ -666,7 +701,7 @@ export default function PortalLoginModal({
                     value={registerData.cgpa}
                     onChange={(e) => setRegisterData({ ...registerData, cgpa: e.target.value })}
                     placeholder="e.g. 2.90"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                   />
                 </div>
               </div>
@@ -680,7 +715,7 @@ export default function PortalLoginModal({
                   <select
                     value={registerData.preferredHall}
                     onChange={(e) => setRegisterData({ ...registerData, preferredHall: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs cursor-pointer"
                   >
                     <option value="Padma Residential Hall (Floor 1)">Padma Residential Hall (Floor 1)</option>
                     <option value="Padma Residential Hall (Floor 2)">Padma Residential Hall (Floor 2)</option>
@@ -696,13 +731,13 @@ export default function PortalLoginModal({
                     value={registerData.phone}
                     onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
                     placeholder="e.g. 01776277198"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                   />
                 </div>
               </div>
 
               {/* Preferred Room Capacity (4 / 2 / 1 Person Room) */}
-              <div className="p-3 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/50 space-y-2">
+              <div className="p-3.5 rounded-2xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/60 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
                     <Building size={14} className="text-emerald-600" />
@@ -725,10 +760,10 @@ export default function PortalLoginModal({
                         key={opt.capacity}
                         type="button"
                         onClick={() => setRegisterData({ ...registerData, preferredCapacity: opt.capacity })}
-                        className={`p-2 rounded-xl border text-left transition-all relative ${
+                        className={`p-2.5 rounded-xl border text-left transition-all relative ${
                           isSelected
                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-900/20 ring-2 ring-emerald-500/30'
-                            : 'bg-white dark:bg-[#060911] border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-emerald-400'
+                            : 'bg-white dark:bg-[#131b2e] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-emerald-400'
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -749,7 +784,7 @@ export default function PortalLoginModal({
                 </div>
 
                 {/* Dynamic Smart Allocation Hint */}
-                <div className="p-2.5 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                <div className="p-2.5 rounded-xl bg-white dark:bg-[#131b2e] border border-emerald-200/70 dark:border-emerald-800/70 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2 shadow-xs">
                   {Number(registerData.preferredCapacity) === 1 ? (
                     <>
                       <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold shrink-0 text-[10px]">
@@ -772,27 +807,29 @@ export default function PortalLoginModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Guardian / Father's Name
+                    Guardian / Father's Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
+                    required
                     value={registerData.guardianName}
                     onChange={(e) => setRegisterData({ ...registerData, guardianName: e.target.value })}
                     placeholder="e.g. Md. Rafiqul Hasan"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                   />
                 </div>
 
                 <div>
                   <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Guardian Emergency Phone
+                    Guardian Emergency Phone <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="tel"
+                    required
                     value={registerData.guardianPhone}
                     onChange={(e) => setRegisterData({ ...registerData, guardianPhone: e.target.value })}
                     placeholder="e.g. +880 1711 987654"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                   />
                 </div>
               </div>
@@ -808,7 +845,7 @@ export default function PortalLoginModal({
                     value={registerData.password}
                     onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                     placeholder="Min 6 characters"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                     required
                   />
                 </div>
@@ -822,7 +859,7 @@ export default function PortalLoginModal({
                     value={registerData.confirmPassword}
                     onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
                     placeholder="Repeat password"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50/70 hover:bg-slate-50 dark:bg-[#131b2e]/80 dark:hover:bg-[#131b2e] border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-[#0d121f] focus:border-emerald-600 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-xs"
                     required
                   />
                 </div>

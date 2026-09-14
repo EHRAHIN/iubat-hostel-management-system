@@ -99,7 +99,7 @@ exports.getFinancials = async (req, res) => {
       const initialExpenses = [
         {
           expenseId: 'EXP-2026-001',
-          title: 'Residential Mess Raw Grocery & Food Supplies (March Batch 1)',
+          title: 'Residential Mess Raw Grocery & Food Supplies (September Batch 1)',
           category: 'Mess Grocery & Food Supplies',
           hall: 'Padma Residential Hall',
           amountBDT: 72500,
@@ -107,8 +107,8 @@ exports.getFinancials = async (req, res) => {
           voucherNo: 'VOUCH-91204',
           approvedBy: 'Provost & Dining Board',
           paymentMethod: 'Bank Transfer',
-          date: '2026-03-01',
-          month: 'March 2026',
+          date: '2026-09-12',
+          month: 'September 2026',
           notes: 'Rice, Lentils, Cooking Oil, Poultry & Spices for boarders',
         },
         {
@@ -118,11 +118,11 @@ exports.getFinancials = async (req, res) => {
           hall: 'Padma Residential Hall',
           amountBDT: 94000,
           vendor: 'Dhaka Electric Supply Company (DESCO)',
-          voucherNo: 'DESCO-FEB-26',
+          voucherNo: 'DESCO-SEP-26',
           approvedBy: 'Director of Engineering',
           paymentMethod: 'Bank Transfer',
-          date: '2026-02-28',
-          month: 'February 2026',
+          date: '2026-09-08',
+          month: 'September 2026',
           notes: 'Monthly bulk commercial electricity tariff for Padma hall building',
         },
         {
@@ -132,11 +132,11 @@ exports.getFinancials = async (req, res) => {
           hall: 'Padma Residential Hall',
           amountBDT: 145000,
           vendor: 'IUBAT Central Accounts & Payroll Division',
-          voucherNo: 'PAY-FEB-2026',
+          voucherNo: 'PAY-SEP-2026',
           approvedBy: 'Vice Chancellor / Super Admin',
           paymentMethod: 'Bank Transfer',
-          date: '2026-02-28',
-          month: 'February 2026',
+          date: '2026-09-01',
+          month: 'September 2026',
           notes: 'Maintenance Staff, Dining Staff, and Resident House Tutors',
         },
         {
@@ -149,8 +149,8 @@ exports.getFinancials = async (req, res) => {
           voucherNo: 'VOUCH-88120',
           approvedBy: 'Chief Maintenance Officer',
           paymentMethod: 'Cheque',
-          date: '2026-02-25',
-          month: 'February 2026',
+          date: '2026-08-28',
+          month: 'August 2026',
           notes: 'Membrane filter replacement & pump capacitor repair',
         },
         {
@@ -163,8 +163,8 @@ exports.getFinancials = async (req, res) => {
           voucherNo: 'VOUCH-77412',
           approvedBy: 'Provost Office',
           paymentMethod: 'Petty Cash',
-          date: '2026-02-20',
-          month: 'February 2026',
+          date: '2026-08-22',
+          month: 'August 2026',
           notes: 'Floor disinfectants, trash bin liners, washroom cleaner bulk',
         },
         {
@@ -177,8 +177,8 @@ exports.getFinancials = async (req, res) => {
           voucherNo: 'VOUCH-66109',
           approvedBy: 'IT Director / Super Admin',
           paymentMethod: 'Bank Transfer',
-          date: '2026-02-15',
-          month: 'February 2026',
+          date: '2026-08-15',
+          month: 'August 2026',
           notes: 'Dual 1Gbps dedicated optical link for hostel student wings',
         },
       ];
@@ -203,9 +203,9 @@ exports.getFinancials = async (req, res) => {
 
     // 5. Monthly History Breakdown
     const monthlyLedger = [
-      { month: 'March 2026 (Running)', revenue: 635000, expenses: 388000, profit: 247000, margin: '38.9%', status: 'Net Surplus' },
-      { month: 'February 2026', revenue: 615000, expenses: 356000, profit: 259000, margin: '42.1%', status: 'Net Surplus' },
-      { month: 'January 2026', revenue: 590000, expenses: 370000, profit: 220000, margin: '37.3%', status: 'Net Surplus' },
+      { month: 'September 2026 (Running)', revenue: 635000, expenses: 388000, profit: 247000, margin: '38.9%', status: 'Net Surplus' },
+      { month: 'August 2026', revenue: 615000, expenses: 356000, profit: 259000, margin: '42.1%', status: 'Net Surplus' },
+      { month: 'July 2026', revenue: 590000, expenses: 370000, profit: 220000, margin: '37.3%', status: 'Net Surplus' },
     ];
 
     res.status(200).json({

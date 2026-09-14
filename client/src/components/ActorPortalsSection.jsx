@@ -26,7 +26,7 @@ export default function ActorPortalsSection({ onSelectRole }) {
       badge: 'Resident Self-Service',
       features: [
         'Apply for room with 7-question lifestyle survey',
-        'Smart Searching Roommate pairing & vector match',
+        'Roommate matching based on study and living habits',
         'Digital leave pass & emergency out-pass submission',
         'Report electrical & plumbing repair tickets',
         'Daily meal token booking & dining status',
@@ -61,7 +61,7 @@ export default function ActorPortalsSection({ onSelectRole }) {
       glow: 'hover:border-emerald-500/50',
       badge: 'Provost Authority',
       features: [
-        'Review Smart Searching Roommate pairs & approve seats',
+        'Review roommate pairings & approve seat allocations',
         'Final digital endorsement for student out-passes',
         'Assign repair tickets to hall maintenance staff',
         'Broadcast administrative notices to student feeds',
@@ -149,15 +149,15 @@ export default function ActorPortalsSection({ onSelectRole }) {
             return (
               <div
                 key={actor.role}
-                className="saas-card rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group"
+                className="saas-card ios-glass-card ios-tap-active rounded-3xl p-6 flex flex-col justify-between group"
               >
                 <div>
                   {/* Top Badge & Icon */}
                   <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 rounded-2xl ${actor.bg} ${actor.color} border ${actor.border} flex items-center justify-center group-hover:scale-105 transition-transform`}>
+                    <div className={`w-12 h-12 rounded-2xl ${actor.bg} ${actor.color} border ${actor.border} flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm`}>
                       <Icon size={24} />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    <span className="ios-glass-pill text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full text-slate-700 dark:text-slate-200">
                       {actor.badge}
                     </span>
                   </div>
@@ -183,7 +183,7 @@ export default function ActorPortalsSection({ onSelectRole }) {
                 {/* Card Footer Action */}
                 <button
                   onClick={() => onSelectRole(actor.role)}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-emerald-600 text-xs font-bold transition-all shadow-xs"
+                  className="ios-glass-pill ios-tap-active w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white text-slate-800 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer shadow-xs"
                 >
                   <span>Launch {actor.title.split('(')[0]}</span>
                   <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />

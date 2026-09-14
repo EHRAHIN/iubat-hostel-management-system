@@ -9,7 +9,20 @@ exports.getComplaints = async (req, res) => {
 
     if (hall && hall !== 'all') query.hall = hall;
     if (floor && floor !== 'all') query.floor = floor;
-    if (category && category !== 'all') query.category = category;
+    if (category && category !== 'all') {
+      const catLower = category.toLowerCase();
+      if (catLower.includes('electr')) {
+        query.category = { $in: ['Electrical', 'Electricity'] };
+      } else if (catLower.includes('net') || catLower.includes('wi-fi') || catLower.includes('internet')) {
+        query.category = { $in: ['Network', 'Wi-Fi & LAN', 'Internet & Network', 'Internet / Wi-Fi & LAN'] };
+      } else if (catLower.includes('plumb') || catLower.includes('water')) {
+        query.category = { $in: ['Plumbing', 'Water Pump & Plumbing', 'Water & Plumbing', 'Plumbing & Water'] };
+      } else if (catLower.includes('furn') || catLower.includes('lock') || catLower.includes('bed')) {
+        query.category = { $in: ['Furniture', 'Furniture & Hardware', 'Furniture & Locks'] };
+      } else {
+        query.category = category;
+      }
+    }
     if (priority && priority !== 'all') query.priority = priority;
     if (status && status !== 'all') query.status = status;
     if (tutorStatus && tutorStatus !== 'all') query.tutorStatus = tutorStatus;
@@ -45,6 +58,14 @@ exports.createComplaint = async (req, res) => {
 
     const ticketId = `WRK-2026-${Math.floor(100 + Math.random() * 900)}`;
 
+    // Normalize category
+    let cleanCategory = category || 'Electrical';
+    const catLower = cleanCategory.toLowerCase();
+    if (catLower.includes('electr')) cleanCategory = 'Electrical';
+    else if (catLower.includes('net') || catLower.includes('wi-fi') || catLower.includes('internet')) cleanCategory = 'Network';
+    else if (catLower.includes('plumb') || catLower.includes('water')) cleanCategory = 'Plumbing';
+    else if (catLower.includes('furn') || catLower.includes('lock') || catLower.includes('bed')) cleanCategory = 'Furniture';
+
     const complaint = await Complaint.create({
       ticketId,
       studentId: studentId || '221004128',
@@ -52,7 +73,7 @@ exports.createComplaint = async (req, res) => {
       hall: hall || 'Padma Residential Hall (Male)',
       floor: floor || 'Floor 1',
       room: room || 'Room 104',
-      category: category || 'Electrical',
+      category: cleanCategory,
       priority: priority || 'Normal',
       title: title.trim(),
       description: description.trim(),

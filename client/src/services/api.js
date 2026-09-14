@@ -67,6 +67,11 @@ export const api = {
     const query = new URLSearchParams(params).toString();
     return request(`/users${query ? `?${query}` : ''}`);
   },
+  createUser: (userData) =>
+    request('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    }),
   provisionUser: (userData) =>
     request('/users/provision', {
       method: 'POST',
@@ -212,6 +217,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  deleteComplaint: (id) =>
+    request(`/complaints/${id}`, {
+      method: 'DELETE',
+    }),
 
   // Gate Pass & Leave Requests
   getGatePasses: (params = {}) => {
@@ -228,6 +237,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  verifyGatePassQr: (data) =>
+    request('/gatepass/verify-qr', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   // Dining & Mess Operations
   getMessMenu: () => request('/mess/menu'),
@@ -240,6 +254,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(bookingData),
     }),
+  verifyMealQrToken: (data) =>
+    request('/mess/verify-qr', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   approveMealBooking: (id, data = {}) =>
     request(`/mess/bookings/${id}/approve`, {
       method: 'PUT',
@@ -251,6 +270,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   getStudentMealSummary: (studentId) => request(`/mess/student-summary/${studentId}`),
+  getStudentMeals: (studentId) => request(`/mess/student-summary/${studentId}`),
   bookMeal: (bookingData) =>
     request('/mess/bookings', {
       method: 'POST',
@@ -308,6 +328,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(noticeData),
     }),
+  updateNotice: (id, noticeData) =>
+    request(`/notices/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(noticeData),
+    }),
+  deleteNotice: (id) =>
+    request(`/notices/${id}`, {
+      method: 'DELETE',
+    }),
 
   // SSLCommerz Payments & Financial Invoices
   getPayments: (params = {}) => {
@@ -315,6 +344,24 @@ export const api = {
     return request(`/payments${query ? `?${query}` : ''}`);
   },
   getPaymentById: (id) => request(`/payments/${id}`),
+  getAllPaymentsAdmin: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/payments/admin/all${query ? `?${query}` : ''}`);
+  },
+  getPaymentStatisticsAdmin: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/payments/admin/statistics${query ? `?${query}` : ''}`);
+  },
+  updatePaymentStatusAdmin: (id, data) =>
+    request(`/payments/admin/status/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  refundPaymentAdmin: (id, data = {}) =>
+    request(`/payments/admin/refund/${id}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   initSSLCommerzPayment: (data) =>
     request('/payments/sslcommerz/init', {
       method: 'POST',
@@ -324,6 +371,12 @@ export const api = {
     request('/payments/sslcommerz/complete', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  validateSSLPayment: (tranId) => request(`/payments/sslcommerz/validate/${tranId}`),
+  autoConfirmSSLPayment: (tranId) =>
+    request('/payments/sslcommerz/auto-confirm', {
+      method: 'POST',
+      body: JSON.stringify({ transactionId: tranId }),
     }),
   createInvoice: (data) =>
     request('/payments/create-invoice', {

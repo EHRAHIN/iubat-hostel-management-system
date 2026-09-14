@@ -161,3 +161,64 @@ exports.updateGatePassStatus = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Verify Gate Pass QR code (Security Guard / Gate Staff verification)
+// @route   POST /api/gatepass/verify-qr
+exports.verifyGatePassQr = async (req, res) => {
+  try {
+    const { qrCode, passId, studentId, guardName } = req.body;
+    const searchVal = passId || qrCode;
+    if (!searchVal && !studentId) {
+      return res.status(400).json({ success: false, message: 'Missing pass ID or QR code to verify.' });
+    }
+
+    let gatePass = null;
+    if (searchVal) {
+      gatePass = await GatePass.findOne({
+        $or: [
+          { passId: searchVal },
+          { qrPassCode: searchVal },
+          { _id: searchVal.match(/^[0-9a-fA-F]{24}$/) ? searchVal : null },
+        ],
+      });
+    }
+
+    if (!gatePass && studentId) {
+      gatePass = await GatePass.findOne({ studentId }).sort({ createdAt: -1 });
+    }
+
+    if (!gatePass) {
+      return res.status(404).json({ success: false, message: `No gate pass record found matching '${searchVal || studentId}'.` });
+    }
+
+    const isFullyApproved = gatePass.status === 'Approved' || gatePass.status === 'Teacher Approved' || gatePass.status === 'Approved & Checked-Out';
+    if (!isFullyApproved) {
+      return res.status(200).json({
+        success: false,
+        notApproved: true,
+        message: `⛔ GATE EXIT DENIED: Gate pass #${gatePass.passId} is NOT fully approved yet (Current Status: ${gatePass.status}).`,
+        data: gatePass,
+      });
+    }
+
+    // Check if already checked out
+    const alreadyOut = gatePass.status === 'Approved & Checked-Out';
+    if (!alreadyOut) {
+      gatePass.status = 'Approved & Checked-Out';
+      gatePass.checkedOutAt = new Date();
+      gatePass.guardVerifiedBy = guardName || 'Main Gate Security Guard';
+      await gatePass.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      alreadyCheckedOut: alreadyOut,
+      message: alreadyOut
+        ? `ℹ️ Student ${gatePass.studentName} was already checked out at ${new Date(gatePass.checkedOutAt).toLocaleTimeString()}.`
+        : `✅ Gate Pass Validated! Student ${gatePass.studentName} (ID: ${gatePass.studentId}, Room: ${gatePass.room}) cleared to exit hall.`,
+      data: gatePass,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

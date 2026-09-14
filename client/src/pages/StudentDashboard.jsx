@@ -32,11 +32,15 @@ import {
   Lock,
   Building,
   ArrowRightLeft,
+  QrCode,
 } from 'lucide-react';
 import SSLCommerzModal from '../components/SSLCommerzModal';
 import PaymentReceiptModal from '../components/PaymentReceiptModal';
 import StudentMealReceiptModal from '../components/StudentMealReceiptModal';
 import StudentRoomTransferModal from '../components/StudentRoomTransferModal';
+import TargetedNoticesWidget from '../components/TargetedNoticesWidget';
+import StudentMealQrModal from '../components/StudentMealQrModal';
+import GatePassQrModal from '../components/GatePassQrModal';
 
 export default function StudentDashboard({ currentUser, onLogout, onShowToast, onOpenSmartAssign }) {
   // Navigation Tabs (Persisted across page reloads)
@@ -75,6 +79,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
     merit: currentUser?.merit || 'Merit Rank #14',
     floorTeacher: currentUser?.floorTeacher || 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)',
     floorTeacherPhone: currentUser?.floorTeacherPhone || '+880 1819 123456',
+    balance: currentUser?.balance || '৳ 4,500',
   });
 
   // 0. Payments & Financial Transactions State
@@ -84,11 +89,25 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
   const [isMealReceiptModalOpen, setIsMealReceiptModalOpen] = useState(false);
   const [activeInvoiceForPay, setActiveInvoiceForPay] = useState(null);
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState(null);
+  const [isRedirectingSSL, setIsRedirectingSSL] = useState(false);
 
   // Room Transfer Application State
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [activeTransferRequest, setActiveTransferRequest] = useState(null);
   const [transferPrefill, setTransferPrefill] = useState(null);
+
+  // Digital QR Code Modals (Meal Tokens & Gate Passes)
+  const [isMealQrModalOpen, setIsMealQrModalOpen] = useState(false);
+  const [selectedMealTokenForQr, setSelectedMealTokenForQr] = useState(null);
+  const [isGatePassQrModalOpen, setIsGatePassQrModalOpen] = useState(false);
+  const [selectedGatePassForQr, setSelectedGatePassForQr] = useState(null);
+
+  // Open Exact SSLCommerz Payment Gateway Interface (No auto-back, authentic checkout)
+  const handlePayViaSSLCommerz = (inv) => {
+    setActiveInvoiceForPay(inv);
+    setIsSSLModalOpen(true);
+  };
+
 
   const fetchPayments = async () => {
     try {
@@ -103,16 +122,31 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
     }
   };
 
+  const handleVerifyInvoice = async (inv) => {
+    try {
+      onShowToast('Checking gateway status with SSLCommerz servers...', 'info');
+      const res = await api.validateSSLPayment({
+        val_id: inv.transactionId || inv.invoiceNo,
+        tran_id: inv.transactionId || inv.invoiceNo,
+      });
+      if (res?.status === 'VALID' || res?.status === 'SUCCESS' || res?.data?.status === 'Paid') {
+        onShowToast(`Invoice ${inv.invoiceNo} verified as Paid!`, 'success');
+        fetchPayments();
+      } else {
+        onShowToast(`Invoice status: ${res?.status || inv.status}`, 'info');
+      }
+    } catch (err) {
+      onShowToast(err.message || 'Failed to verify invoice with gateway.', 'error');
+    }
+  };
+
   const fetchTransferRequests = async () => {
     try {
       const sId = currentUser?.userId || currentUser?.id || student.id;
       if (!sId) return;
       const res = await api.getRoomTransferRequests({ studentId: sId });
       if (res?.data && res.data.length > 0) {
-        const pending = res.data.find((r) => r.status === 'Pending Review');
-        setActiveTransferRequest(pending || res.data[0]);
-      } else {
-        setActiveTransferRequest(null);
+        setActiveTransferRequest(res.data[0]);
       }
     } catch (err) {
       console.error('Fetch transfer requests error:', err);
@@ -125,7 +159,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
   }, [currentUser]);
 
   useEffect(() => {
-    if (activeTab === 'roommate') {
+    if (activeTab === 'roommate' || activeTab === 'ai-matcher') {
       handleCalculateAiMatch();
     }
   }, [activeTab]);
@@ -170,8 +204,8 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
         if (!studentUserId) return;
         const res = await api.getApplications();
         if (res?.data && res.data.length > 0 && isMounted) {
-          const myApp = res.data.find(a => 
-            a.userId === studentUserId || 
+          const myApp = res.data.find(a =>
+            a.userId === studentUserId ||
             a.studentId === studentUserId ||
             a.email === currentUser?.email
           );
@@ -188,25 +222,9 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
               allocationStatus: myApp.status || prev.allocationStatus,
             }));
 
-            if (myApp.aiPartner?.name) {
-              setLiveRoommate({
-                name: myApp.aiPartner.name,
-                id: myApp.aiPartner.userId || myApp.aiPartner.id || '',
-                dept: myApp.aiPartner.department || 'CSE',
-                cgpa: myApp.aiPartner.cgpa ? String(myApp.aiPartner.cgpa) : '3.75',
-                seat: myApp.aiPartner.seatNo || (myApp.allocatedBed === 'Bed A' ? 'Bed B' : 'Bed A'),
-                phone: myApp.aiPartner.phone || '+880 1912 345678',
-                aiMatchScore: myApp.aiPartner.matchScore !== undefined && myApp.aiPartner.matchScore !== null
-                  ? `${myApp.aiPartner.matchScore}%`
-                  : (myApp.aiPartner.matchReasons?.length ? `${Math.round((myApp.aiPartner.matchReasons.length / 5) * 100)}%` : '95%'),
-                matchReasons: myApp.aiPartner.matchReasons?.length ? myApp.aiPartner.matchReasons : [
-                  'Synchronized sleep schedule and study routine',
-                  'Matched quiet study environment preference',
-                  'High shared standard of room hygiene and clean desks',
-                ],
-              });
-            } else if (isApproved && myApp.allocatedRoom) {
-              const coOccupant = res.data.find(a => 
+            if (isApproved && myApp.allocatedRoom) {
+              // Room is officially allocated: check for a real student allocated to the other bed in this room
+              const coOccupant = res.data.find(a =>
                 (a.status === 'Allocated' || a.status === 'Approved & Allocated' || a.status === 'Approved') &&
                 a.allocatedHall === myApp.allocatedHall &&
                 a.allocatedRoom === myApp.allocatedRoom &&
@@ -217,13 +235,13 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
               );
               if (coOccupant) {
                 setLiveRoommate({
-                  name: coOccupant.studentName || coOccupant.name,
+                  name: coOccupant.fullName || coOccupant.studentName || coOccupant.name,
                   id: coOccupant.userId || coOccupant.studentId || '',
                   dept: coOccupant.department || 'CSE',
                   cgpa: coOccupant.cgpa ? String(coOccupant.cgpa) : '3.75',
                   seat: coOccupant.allocatedBed || (myApp.allocatedBed === 'Bed A' ? 'Bed B' : 'Bed A'),
-                  phone: coOccupant.phone || '+880 1912 345678',
-                  aiMatchScore: coOccupant.matchScore !== undefined ? `${coOccupant.matchScore}%` : '95%',
+                  phone: coOccupant.phone || '',
+                  aiMatchScore: coOccupant.matchScore !== undefined ? `${coOccupant.matchScore}%` : '83%',
                   matchReasons: [
                     'Synchronized sleep schedule and study routine',
                     'Matched quiet study environment preference',
@@ -233,6 +251,23 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
               } else {
                 setLiveRoommate(null);
               }
+            } else if (myApp.aiPartner?.name && myApp.aiPartner.name.trim() !== '') {
+              setLiveRoommate({
+                name: myApp.aiPartner.name,
+                id: myApp.aiPartner.userId || myApp.aiPartner.id || '',
+                dept: myApp.aiPartner.department || 'CSE',
+                cgpa: myApp.aiPartner.cgpa ? String(myApp.aiPartner.cgpa) : '3.75',
+                seat: myApp.aiPartner.seatNo || (myApp.allocatedBed === 'Bed A' ? 'Bed B' : 'Bed A'),
+                phone: myApp.aiPartner.phone || '',
+                aiMatchScore: myApp.aiPartner.matchScore !== undefined && myApp.aiPartner.matchScore !== null
+                  ? `${myApp.aiPartner.matchScore}%`
+                  : (myApp.aiPartner.matchReasons?.length ? `${Math.round((myApp.aiPartner.matchReasons.length / 6) * 100)}%` : '83%'),
+                matchReasons: myApp.aiPartner.matchReasons?.length ? myApp.aiPartner.matchReasons : [
+                  'Synchronized sleep schedule and study routine',
+                  'Matched quiet study environment preference',
+                  'High shared standard of room hygiene and clean desks',
+                ],
+              });
             } else {
               setLiveRoommate(null);
             }
@@ -243,7 +278,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
       }
     };
     fetchLiveStatus();
-    const interval = setInterval(fetchLiveStatus, 2500);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      fetchLiveStatus();
+    }, 6000);
     return () => {
       isMounted = false;
       clearInterval(interval);
@@ -293,7 +331,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
       to: 'Padma Room 204',
       reason: 'Thesis group study proximity',
       status: 'Pending Provost Office Review',
-      date: 'Feb 12, 2026',
+      date: 'Sep 10, 2026',
     },
   ]);
 
@@ -301,8 +339,8 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveForm, setLeaveForm] = useState({
     type: 'Weekend Out-Pass',
-    fromDate: '2026-03-01',
-    toDate: '2026-03-03',
+    fromDate: '2026-09-18',
+    toDate: '2026-09-20',
     destination: 'Permanent Residence, Uttara Sector 4, Dhaka',
     emergencyContact: '+880 1711 987654',
     reason: 'Family visit during weekend.',
@@ -311,75 +349,125 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
     {
       id: 'LP-2026-094',
       type: 'Weekend Out-Pass',
-      dates: 'Mar 01, 2026 to Mar 03, 2026',
+      dates: 'Sep 05, 2026 to Sep 07, 2026',
       destination: 'Permanent Residence, Uttara Sector 4, Dhaka',
       reason: 'Family visit over the weekend.',
-      status: 'Teacher Approved',
-      parentConsent: 'Consent Verified via Guardian SMS (+880 1711 987654)',
-      floorTeacherStatus: 'Recommended by Prof. Anisur Rahman',
-      gatePassCode: 'GP-8832',
+      status: 'Returned & Completed',
+      approvedBy: 'Prof. Anisur Rahman',
+      appliedOn: 'Sep 05, 2026',
     },
   ]);
 
-  // 4. Maintenance Complaints State
+  // 4. Maintenance / Repair Complaints State
   const [complaintModalOpen, setComplaintModalOpen] = useState(false);
+  const [complaintCategoryFilter, setComplaintCategoryFilter] = useState('all');
   const [complaintForm, setComplaintForm] = useState({
     category: 'Electrical',
-    location: `${student.hall} • ${student.room}`,
-    priority: 'Urgent',
-    title: '',
-    description: '',
+    urgency: 'Medium',
+    description: 'Ceiling fan regulator not working in room.',
   });
-  const [complaints, setComplaints] = useState([]);
+  const [complaints, setComplaints] = useState([
+    {
+      id: 'CMP-2026-042',
+      category: 'Electrical',
+      urgency: 'Medium',
+      description: 'Ceiling fan regulator knob broken in Padma 104.',
+      status: 'In Progress',
+      reportedDate: 'Sep 11, 2026',
+      assignedTechnician: 'Md. Rafiq (Hostel Electrician)',
+    },
+    {
+      id: 'CMP-2026-018',
+      category: 'Plumbing',
+      urgency: 'High',
+      description: 'Water faucet leakage in common washroom.',
+      status: 'Resolved',
+      reportedDate: 'Sep 05, 2026',
+      assignedTechnician: 'Alamgir Hossain (Plumber)',
+    },
+  ]);
 
-  const fetchStudentComplaints = async () => {
+  const fetchComplaints = async () => {
     try {
-      const res = await api.getComplaints({ studentId: student.id });
-      if (res?.data) {
-        setComplaints(res.data);
+      const sId = currentUser?.userId || currentUser?.id || student.id;
+      if (!sId) return;
+      const res = await api.getComplaints({ studentId: sId });
+      const list = res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
+        setComplaints(list.map(c => ({
+          id: c.complaintId || c._id || `CMP-${c._id?.slice(-4)}`,
+          category: c.category || 'General',
+          urgency: c.priority || c.urgency || 'Medium',
+          description: c.description || c.title || 'Maintenance issue',
+          status: c.status || 'Pending',
+          reportedDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently',
+          assignedTechnician: c.assignedTo || 'Assigned to Maintenance Division',
+        })));
       }
     } catch (err) {
-      console.log('Error fetching student complaints:', err.message);
+      console.error('Error fetching complaints:', err);
     }
   };
 
-  useEffect(() => {
-    fetchStudentComplaints();
-  }, [student.id]);
-
-  // 5. Dynamic Mess & Meal State
-  const [studentMealSummary, setStudentMealSummary] = useState({
-    totalConsumedMeals: 0,
-    pendingApprovalMeals: 0,
-    totalSpentBDT: 0,
-    recentApplications: [],
-  });
+  // 5. Dining & Meal Log State
+  const [activeMealDay, setActiveMealDay] = useState('today');
+  const [mealBookings, setMealBookings] = useState([]);
   const [isApplyingMeal, setIsApplyingMeal] = useState(false);
   const [overrideAutoMealOff, setOverrideAutoMealOff] = useState(false);
   const [isMealDisabledManual, setIsMealDisabledManual] = useState(false);
+  const [mealBalance, setMealBalance] = useState(student.balance);
+  const [todayMealStatus, setTodayMealStatus] = useState({
+    breakfast: true,
+    lunch: true,
+    dinner: false,
+  });
+  const [studentMealSummary, setStudentMealSummary] = useState({
+    totalConsumedMeals: 0,
+    pendingApprovalMeals: 0,
+    totalAppliedMeals: 0,
+    totalCostBDT: '0 BDT',
+    totalSpentBDT: 0,
+    recentApplications: [],
+  });
 
   const fetchStudentMeals = async () => {
     try {
-      const res = await api.getStudentMealSummary(student.id);
-      if (res?.data) {
-        setStudentMealSummary(res.data);
+      const sId = currentUser?.userId || currentUser?.id || student.id;
+      if (!sId) return;
+      const res = await api.getStudentMeals(sId);
+      const summaryData = res?.data?.data || res?.data || (res?.success ? res.data : null);
+      if (summaryData) {
+        const meals = summaryData.recentApplications || (Array.isArray(summaryData) ? summaryData : []);
+        setMealBookings(meals);
+        const consumed = summaryData.totalConsumedMeals ?? meals.filter(m => m.status === 'Approved' || m.status === 'Consumed' || m.status === 'Approved & Served').length;
+        const pending = summaryData.uncollectedMeals ?? meals.filter(m => m.status === 'Pending').length;
+        const cost = summaryData.totalCostBDT || `${meals.reduce((acc, m) => acc + (m.tokenCostBDT || m.costBDT || 50), 0)} BDT`;
+        setStudentMealSummary({
+          totalConsumedMeals: consumed,
+          pendingApprovalMeals: pending,
+          totalAppliedMeals: summaryData.totalAppliedMeals || meals.length,
+          totalCostBDT: typeof cost === 'number' ? `${cost} BDT` : cost,
+          totalSpentBDT: typeof cost === 'number' ? cost : parseInt(cost) || 0,
+          recentApplications: meals,
+        });
       }
     } catch (err) {
-      console.log('Error fetching student meals:', err.message);
+      console.error('Error fetching student meals:', err);
     }
   };
 
   useEffect(() => {
     fetchStudentMeals();
+    fetchComplaints();
   }, [student.id]);
 
   // 6. Night Attendance State
   const attendanceLogs = [
-    { date: 'Feb 18, 2026', time: '10:14 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
-    { date: 'Feb 17, 2026', time: '10:08 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
-    { date: 'Feb 16, 2026', time: '10:22 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
-    { date: 'Feb 15, 2026', time: '10:05 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
-    { date: 'Feb 13, 2026', time: '10:12 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
+    { date: 'Sep 13, 2026', time: '10:14 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
+    { date: 'Sep 12, 2026', time: '10:08 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
+    { date: 'Sep 11, 2026', time: '10:22 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
+    { date: 'Sep 10, 2026', time: '10:05 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
+    { date: 'Sep 09, 2026', time: '10:12 PM', status: 'Present', verifiedBy: 'Prof. Anisur Rahman' },
   ];
 
   const handleCalculateAiMatch = async () => {
@@ -550,9 +638,9 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
     req => {
       const st = (req.status || '').toLowerCase();
       const isApproved = st.includes('approved') || st.includes('completed');
-      const isRejected = st.includes('reject') || 
-                         req.guardianConsent === 'Declined' || 
-                         req.floorTeacherStatus === 'Rejected';
+      const isRejected = st.includes('reject') ||
+        req.guardianConsent === 'Declined' ||
+        req.floorTeacherStatus === 'Rejected';
       return isApproved && !isRejected;
     }
   );
@@ -671,13 +759,13 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
 
       {/* 1. Student Primary Status Card */}
-      <div className="rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-sm mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="ios-glass-card rounded-3xl p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               IUBAT Student Residential Workspace
             </span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <span className="ios-glass-pill text-[11px] font-bold px-3 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300">
               {student.status}
             </span>
           </div>
@@ -690,7 +778,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-left sm:text-right">
+          <div className="ios-glass-pill p-3.5 rounded-2xl text-left sm:text-right">
             <div className="text-[11px] text-slate-500 font-medium">Assigned Accommodation</div>
             <div className="text-xs font-bold text-slate-900 dark:text-white">{student.hall} • {student.floor}</div>
             {student.room ? (
@@ -702,7 +790,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/60 dark:hover:text-red-300 text-slate-700 dark:text-slate-300 transition-colors"
+            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -710,13 +798,13 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
         </div>
       </div>
 
-      {/* 2. Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto text-xs font-semibold">
+      {/* 2. Navigation Tabs (Apple iOS Liquid Glass Segmented Bar) */}
+      <div className="ios-glass p-1.5 rounded-2xl mb-6 flex items-center gap-1 overflow-x-auto text-xs font-semibold scrollbar-none">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'overview'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'overview'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
             }`}
         >
           <Building2 size={15} />
@@ -727,21 +815,21 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
         {Number(student.preferredCapacity) !== 1 && (
           <button
             onClick={() => setActiveTab('ai-matcher')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ai-matcher'
-                ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+            className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'ai-matcher'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
               }`}
           >
             <Sparkles size={15} />
-            <span>Smart Searching Roommate ({student.preferredCapacity || 2}-Bed)</span>
+            <span>Roommate Matcher ({student.preferredCapacity || 2}-Bed)</span>
           </button>
         )}
 
         <button
           onClick={() => setActiveTab('leave')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'leave'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'leave'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
             }`}
         >
           <FileText size={15} />
@@ -750,9 +838,9 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
         <button
           onClick={() => setActiveTab('complaints')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'complaints'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'complaints'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
             }`}
         >
           <Wrench size={15} />
@@ -761,9 +849,9 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
         <button
           onClick={() => setActiveTab('dining')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'dining'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'dining'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
             }`}
         >
           <Utensils size={15} />
@@ -772,9 +860,9 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
         <button
           onClick={() => setActiveTab('attendance')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'attendance'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'attendance'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
             }`}
         >
           <CalendarCheck size={15} />
@@ -783,13 +871,24 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
         <button
           onClick={() => setActiveTab('payments')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${activeTab === 'payments'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'payments'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
             }`}
         >
           <CreditCard size={15} />
           <span>Fees & SSLCommerz Payments ({payments.filter(p => p.status === 'Due').length} Due)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notices')}
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${activeTab === 'notices'
+            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
+            }`}
+        >
+          <FileText size={15} />
+          <span>Provost Circulars & Notices</span>
         </button>
       </div>
 
@@ -950,10 +1049,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                           {roommate.name}
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          ID: {roommate.id} • {roommate.dept}
+                          Department: {roommate.dept || 'Engineering'}
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                          Contact: {roommate.phone}
+                        <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1.5 pt-1.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-1">
+                          <span>✓ Verified Resident Match</span>
                         </div>
                       </div>
                     ) : (
@@ -1113,11 +1212,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   {student.room ? `Assigned Room: ${student.hall} • ${student.room}` : 'Hostel Room Allocation Status'}
                 </h2>
               </div>
-              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border self-start sm:self-auto ${
-                student.room
+              <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border self-start sm:self-auto ${student.room
                   ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                   : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-              }`}>
+                }`}>
                 {student.room ? 'Provost Office Allocated' : 'Pending Provost Approval'}
               </span>
             </div>
@@ -1164,10 +1262,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                         {roommate.name}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        ID: {roommate.id} • {roommate.dept}
+                        Department: {roommate.dept || 'Engineering'}
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        CGPA: {roommate.cgpa} • Phone: {roommate.phone}
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium flex items-center gap-1">
+                        <span>✓ Verified Compatibility Peer</span>
                       </div>
                     </div>
 
@@ -1229,13 +1327,13 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
             <div className="lg:col-span-6 p-6 rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
               <div>
                 <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block mb-1">
-                  Smart Searching Roommate Engine
+                  Roommate Compatibility Matcher
                 </span>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white">
                   Your Registered Living & Study Profile
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  These verified lifestyle habits are compared with other hostel residents to find your highest living compatibility.
+                  These verified lifestyle habits are compared with other hostel residents to find your best roommate match.
                 </p>
               </div>
 
@@ -1339,17 +1437,17 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                 <div className="my-auto py-12 text-center space-y-3">
                   <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mx-auto" />
                   <div className="text-sm font-bold text-slate-900 dark:text-white">
-                    Scanning Resident Database...
+                    Checking Resident Database...
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-                    Computing lifestyle vectors, sleep rhythm compatibility, and study habit alignments with hall residents...
+                    Comparing sleep schedules, study habits, and preferences with hall residents...
                   </p>
                 </div>
               ) : aiMatchResult ? (
                 <div>
                   <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Smart Searching Roommate Output
+                      Roommate Match Result
                     </span>
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                       {aiMatchResult.status}
@@ -1362,7 +1460,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                       {aiMatchResult.score}%
                     </div>
                     <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mt-1">
-                      Living Compatibility Index
+                      Compatibility Match
                     </div>
                   </div>
 
@@ -1374,7 +1472,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                           Best Matched Resident: {aiMatchResult.recommendation}
                         </div>
                         <div className="text-slate-500 text-[11px] mt-0.5">
-                          Assigned Placement: {aiMatchResult.allocatedRoom}
+                          Room Allocation: {aiMatchResult.allocatedRoom}
                         </div>
                       </div>
                       {aiMatchResult.candidate?.cgpa && (
@@ -1418,7 +1516,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   {aiMatchResult.reasons && aiMatchResult.reasons.length > 0 && (
                     <div className="space-y-2 text-xs">
                       <div className="font-bold text-slate-700 dark:text-slate-300 text-[11px] uppercase tracking-wider">
-                        Key Vector Alignment Factors:
+                        Shared Habits & Preferences:
                       </div>
                       {aiMatchResult.reasons.map((r, i) => (
                         <div key={i} className="flex items-start gap-2 text-slate-600 dark:text-slate-300">
@@ -1485,13 +1583,12 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                     <span className="font-bold text-slate-900 dark:text-white text-sm">{req.type}</span>
                     <span className="text-slate-400 font-mono text-[10px] ml-1.5">#{req.id}</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                    req.isApproved
+                  <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${req.isApproved
                       ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                       : req.isRejected
-                      ? 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
-                      : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                  }`}>
+                        ? 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                        : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                    }`}>
                     {req.status}
                   </span>
                 </div>
@@ -1507,13 +1604,12 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   {/* Step 1: Guardian */}
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600 dark:text-slate-400">1. Guardian Digital Consent:</span>
-                    <span className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
-                      req.isGuardianGranted
+                    <span className={`font-semibold px-2 py-0.5 rounded text-[10px] ${req.isGuardianGranted
                         ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
                         : req.isGuardianDeclined
-                        ? 'bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300'
-                        : 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300'
-                    }`}>
+                          ? 'bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300'
+                          : 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300'
+                      }`}>
                       {req.isGuardianGranted ? '✓ Authorized by Guardian' : req.isGuardianDeclined ? '✕ Declined by Guardian' : '⏳ Awaiting Guardian Consent'}
                     </span>
                   </div>
@@ -1521,22 +1617,41 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   {/* Step 2: Floor Teacher */}
                   <div className="flex items-center justify-between">
                     <span className="text-slate-600 dark:text-slate-400">2. Floor Teacher / Provost:</span>
-                    <span className={`font-semibold px-2 py-0.5 rounded text-[10px] ${
-                      req.isApproved
+                    <span className={`font-semibold px-2 py-0.5 rounded text-[10px] ${req.isApproved
                         ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
                         : req.isRejected
-                        ? 'bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                    }`}>
+                          ? 'bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}>
                       {req.isApproved ? `✓ Approved by ${req.approvedBy || 'House Tutor'}` : req.isRejected ? '✕ Rejected' : '⏳ Awaiting Review'}
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-                  <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                    {req.isApproved ? `Valid Out-Pass QR: ${req.gatePassCode}` : 'Gate Pass: Pending Approval'}
-                  </span>
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-2">
+                    {req.isApproved ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedGatePassForQr(req);
+                          setIsGatePassQrModalOpen(true);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <QrCode size={13} />
+                        <span>View Gate Pass QR</span>
+                      </button>
+                    ) : (
+                      <span className="text-amber-700 dark:text-amber-300 font-semibold flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <Clock size={12} />
+                        <span>QR Available Upon Full Approval</span>
+                      </span>
+                    )}
+                    <span className="font-mono text-slate-500">
+                      {req.isApproved ? req.gatePassCode : `Ref: #${req.id}`}
+                    </span>
+                  </div>
                   {req.isApproved && (
                     <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
                       <CheckCircle2 size={13} />
@@ -1578,36 +1693,121 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
             </button>
           </div>
 
-          {complaints.length === 0 ? (
-            <div className="p-12 rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 text-center space-y-3 shadow-sm">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
-                <Wrench size={24} />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">No Maintenance Tickets Logged Yet</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Your room and floor currently have no open repair requests. If you face any issues with ⚡ Electricity, 🌐 Net/LAN, 🚰 Plumbing, or 🚪 Furniture, click "Create Repair Ticket" above.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {complaints.map((c) => (
-                <div key={c._id || c.id} className="p-5 rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-sm text-xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                    <span className="font-bold text-slate-900 dark:text-white">{c.title || `${c.category} Issue`}</span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      {c.status || 'Reported'}
-                    </span>
+          {/* Category Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 pb-2 text-xs font-semibold">
+            {[
+              { id: 'all', label: 'All Tickets', icon: '🛠️' },
+              { id: 'Electrical', label: 'Electricity (Fan, Light)', icon: '⚡' },
+              { id: 'Network', label: 'Internet / Wi-Fi & LAN', icon: '🌐' },
+              { id: 'Plumbing', label: 'Plumbing & Water', icon: '🚰' },
+              { id: 'Furniture', label: 'Furniture & Locks', icon: '🚪' },
+            ].map((cat) => {
+              const count = cat.id === 'all'
+                ? complaints.length
+                : complaints.filter(c => {
+                    const cCat = (c.category || '').toLowerCase();
+                    if (cat.id === 'Electrical') return cCat.includes('electr');
+                    if (cat.id === 'Network') return cCat.includes('net') || cCat.includes('wi-fi');
+                    if (cat.id === 'Plumbing') return cCat.includes('plumb') || cCat.includes('water');
+                    if (cat.id === 'Furniture') return cCat.includes('furn') || cCat.includes('lock');
+                    return cCat === cat.id.toLowerCase();
+                  }).length;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setComplaintCategoryFilter(cat.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                    complaintCategoryFilter === cat.id
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white dark:bg-[#0d121f] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                    complaintCategoryFilter === cat.id ? 'bg-blue-700 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {(() => {
+            const filteredComplaints = complaints.filter(c => {
+              if (complaintCategoryFilter === 'all') return true;
+              const cCat = (c.category || '').toLowerCase();
+              if (complaintCategoryFilter === 'Electrical') return cCat.includes('electr');
+              if (complaintCategoryFilter === 'Network') return cCat.includes('net') || cCat.includes('wi-fi');
+              if (complaintCategoryFilter === 'Plumbing') return cCat.includes('plumb') || cCat.includes('water');
+              if (complaintCategoryFilter === 'Furniture') return cCat.includes('furn') || cCat.includes('lock');
+              return cCat === complaintCategoryFilter.toLowerCase();
+            });
+
+            if (filteredComplaints.length === 0) {
+              return (
+                <div className="p-12 rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 text-center space-y-3 shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+                    <Wrench size={24} />
                   </div>
-                  <div className="space-y-1 text-slate-600 dark:text-slate-300">
-                    <div><strong>Category:</strong> {c.category}</div>
-                    <div><strong>Location:</strong> {c.location || `${student.hall} • ${student.room}`}</div>
-                    <div><strong>Priority:</strong> {c.priority}</div>
-                    <div><strong>Description:</strong> {c.description}</div>
-                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">No Tickets in this Category</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    No work orders found for the selected category filter. Click "+ Create Repair Ticket" to log an issue.
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredComplaints.map((c) => {
+                  const catLower = (c.category || '').toLowerCase();
+                  const isElectrical = catLower.includes('electr');
+                  const isNet = catLower.includes('net') || catLower.includes('wi-fi');
+                  const isWater = catLower.includes('plumb') || catLower.includes('water');
+                  const isFurniture = catLower.includes('furn') || catLower.includes('lock') || catLower.includes('bed');
+
+                  return (
+                    <div key={c._id || c.id} className="p-5 rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 shadow-sm text-xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>{isElectrical ? '⚡' : isNet ? '🌐' : isWater ? '🚰' : isFurniture ? '🚪' : '🛠️'}</span>
+                          <span>{c.title || `${c.category} Issue`}</span>
+                        </span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                          {c.status || 'Reported'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-slate-600 dark:text-slate-300">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400">Category:</span>
+                          <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                            isElectrical ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' :
+                            isNet ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300' :
+                            isWater ? 'bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300' :
+                            isFurniture ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300' :
+                            'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          }`}>
+                            {isElectrical ? '⚡ Electricity' : isNet ? '🌐 Internet & LAN' : isWater ? '🚰 Plumbing & Water' : isFurniture ? '🚪 Furniture & Locks' : c.category}
+                          </span>
+                        </div>
+                        <div><strong>Ticket ID:</strong> <span className="font-mono text-slate-800 dark:text-slate-200">{c.ticketId || c._id}</span></div>
+                        <div><strong>Location:</strong> {c.location || `${c.hall || student.hall} • ${c.room || student.room}`}</div>
+                        <div><strong>Priority:</strong> <span className={`font-semibold ${c.priority === 'Critical' ? 'text-rose-600 dark:text-rose-400' : c.priority === 'Urgent' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>{c.priority || 'Normal'}</span></div>
+                        <div><strong>Description:</strong> {c.description}</div>
+                        {c.assignedStaff && !c.assignedStaff.includes('Pending') && (
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                            ✓ Assigned Staff: {c.assignedStaff}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -1755,22 +1955,20 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                 <button
                   type="button"
                   onClick={() => setMealApplyDate(todayDateStr)}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                    mealApplyDate === todayDateStr
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${mealApplyDate === todayDateStr
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                  }`}
+                    }`}
                 >
                   Today ({todayDateStr})
                 </button>
                 <button
                   type="button"
                   onClick={() => setMealApplyDate(tomorrowDateStr)}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                    mealApplyDate === tomorrowDateStr
+                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${mealApplyDate === tomorrowDateStr
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                  }`}
+                    }`}
                 >
                   Tomorrow ({tomorrowDateStr})
                 </button>
@@ -1806,11 +2004,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                     type="button"
                     onClick={() => handleApplyMeal('Breakfast', 'Fresh Egg, Khichuri / Parata, Milk Tea', 30)}
                     disabled={isApplyingMeal || cutoff.isCutoffExpired}
-                    className={`p-4 rounded-2xl border text-left transition-all group shadow-sm hover:shadow-md ${
-                      cutoff.isCutoffExpired
+                    className={`p-4 rounded-2xl border text-left transition-all group shadow-sm hover:shadow-md ${cutoff.isCutoffExpired
                         ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 opacity-75 cursor-not-allowed'
                         : 'bg-slate-50 dark:bg-[#060911] border-slate-200 dark:border-slate-800 hover:border-emerald-500 cursor-pointer'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-slate-900 dark:text-white text-xs">🍳 Breakfast</span>
@@ -1818,7 +2015,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                     </div>
                     <p className="text-[11px] text-slate-500">07:30 AM - 09:00 AM</p>
                     <p className="text-[10px] text-slate-400 mt-1">Egg / Khichuri, Parata, Tea</p>
-                    
+
                     {/* Cutoff Pill */}
                     <div className="mt-2.5">
                       <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${cutoff.badgeColor}`}>
@@ -1826,9 +2023,8 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                       </span>
                     </div>
 
-                    <span className={`inline-block mt-2 text-[10px] font-bold ${
-                      cutoff.isCutoffExpired ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400 group-hover:underline'
-                    }`}>
+                    <span className={`inline-block mt-2 text-[10px] font-bold ${cutoff.isCutoffExpired ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400 group-hover:underline'
+                      }`}>
                       {cutoff.isCutoffExpired ? '⛔ Booking Closed (Cutoff Passed)' : '+ Apply for Breakfast Token →'}
                     </span>
                   </button>
@@ -1843,11 +2039,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                     type="button"
                     onClick={() => handleApplyMeal('Lunch', 'Standard Lunch (Chicken/Fish, Rice, Dal)', 50)}
                     disabled={isApplyingMeal || cutoff.isCutoffExpired}
-                    className={`p-4 rounded-2xl border text-left transition-all group shadow-sm hover:shadow-md ${
-                      cutoff.isCutoffExpired
+                    className={`p-4 rounded-2xl border text-left transition-all group shadow-sm hover:shadow-md ${cutoff.isCutoffExpired
                         ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 opacity-75 cursor-not-allowed'
                         : 'bg-slate-50 dark:bg-[#060911] border-slate-200 dark:border-slate-800 hover:border-emerald-500 cursor-pointer'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-slate-900 dark:text-white text-xs">🍛 Lunch</span>
@@ -1863,9 +2058,8 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                       </span>
                     </div>
 
-                    <span className={`inline-block mt-2 text-[10px] font-bold ${
-                      cutoff.isCutoffExpired ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400 group-hover:underline'
-                    }`}>
+                    <span className={`inline-block mt-2 text-[10px] font-bold ${cutoff.isCutoffExpired ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400 group-hover:underline'
+                      }`}>
                       {cutoff.isCutoffExpired ? '⛔ Booking Closed (Cutoff Passed)' : '+ Apply for Lunch Token →'}
                     </span>
                   </button>
@@ -1880,11 +2074,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                     type="button"
                     onClick={() => handleApplyMeal('Dinner', 'Standard Dinner (Egg/Fish Curry, Rice, Dal)', 50)}
                     disabled={isApplyingMeal || cutoff.isCutoffExpired}
-                    className={`p-4 rounded-2xl border text-left transition-all group shadow-sm hover:shadow-md ${
-                      cutoff.isCutoffExpired
+                    className={`p-4 rounded-2xl border text-left transition-all group shadow-sm hover:shadow-md ${cutoff.isCutoffExpired
                         ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 opacity-75 cursor-not-allowed'
                         : 'bg-slate-50 dark:bg-[#060911] border-slate-200 dark:border-slate-800 hover:border-emerald-500 cursor-pointer'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-slate-900 dark:text-white text-xs">🍲 Dinner</span>
@@ -1900,9 +2093,8 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                       </span>
                     </div>
 
-                    <span className={`inline-block mt-2 text-[10px] font-bold ${
-                      cutoff.isCutoffExpired ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400 group-hover:underline'
-                    }`}>
+                    <span className={`inline-block mt-2 text-[10px] font-bold ${cutoff.isCutoffExpired ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400 group-hover:underline'
+                      }`}>
                       {cutoff.isCutoffExpired ? '⛔ Booking Closed (Cutoff Passed)' : '+ Apply for Dinner Token →'}
                     </span>
                   </button>
@@ -1918,11 +2110,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                     type="button"
                     onClick={() => handleApplyMeal('Full Day (3 Meals)', 'Breakfast + Lunch + Dinner Full Package', 130)}
                     disabled={isApplyingMeal || isExpired}
-                    className={`p-4 rounded-2xl border-2 text-left transition-all group shadow-sm hover:shadow-md ${
-                      isExpired
+                    className={`p-4 rounded-2xl border-2 text-left transition-all group shadow-sm hover:shadow-md ${isExpired
                         ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/60 opacity-75 cursor-not-allowed'
                         : 'bg-emerald-50/80 dark:bg-emerald-950/50 border-emerald-500/70 hover:border-emerald-600 cursor-pointer'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-slate-900 dark:text-white text-xs">🌟 Full Day (3 Meals)</span>
@@ -1938,11 +2129,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                       </span>
                     </div>
 
-                    <span className={`inline-block mt-2 text-[10px] font-bold ${
-                      isExpired
+                    <span className={`inline-block mt-2 text-[10px] font-bold ${isExpired
                         ? 'text-amber-700 dark:text-amber-400'
                         : 'text-emerald-700 dark:text-emerald-300 group-hover:underline'
-                    }`}>
+                      }`}>
                       {isExpired ? '⛔ Closed for Today (Switch to Tomorrow)' : '+ Apply All 3 Meals Together →'}
                     </span>
                   </button>
@@ -1957,7 +2147,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
                 Weekly Residential Mess Roster (Padma Hall Dining)
               </h3>
-              <span className="text-[10px] font-mono text-slate-500">Updated for March 2026</span>
+              <span className="text-[10px] font-mono text-slate-500">Updated for September 2026</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-xs">
               {[
@@ -2011,6 +2201,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                       <th className="pb-3">Token Charge</th>
                       <th className="pb-3">Application Time</th>
                       <th className="pb-3">Status</th>
+                      <th className="pb-3 text-center">Digital QR Token</th>
                       <th className="pb-3 text-right">Staff Approver</th>
                     </tr>
                   </thead>
@@ -2028,15 +2219,14 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                             {b.bookingId || `MEL-${b._id?.slice(-4)}`}
                           </td>
                           <td className="py-3.5 font-semibold text-slate-900 dark:text-white">
-                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 ${
-                              isBreakfast
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 ${isBreakfast
                                 ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                                 : isLunch
-                                ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                : isDinner
-                                ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-                            }`}>
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                  : isDinner
+                                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                              }`}>
                               {isBreakfast ? '🍳 Breakfast' : isLunch ? '🍛 Lunch' : isDinner ? '🍲 Dinner' : b.mealType}
                             </span>
                           </td>
@@ -2054,13 +2244,12 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                           </td>
                           <td className="py-3.5">
                             <span
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 ${
-                                isApproved
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 ${isApproved
                                   ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                   : isRejected
-                                  ? 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
-                                  : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                              }`}
+                                    ? 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+                                    : 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                }`}
                             >
                               {isApproved ? (
                                 <>
@@ -2076,6 +2265,24 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                                 </>
                               )}
                             </span>
+                          </td>
+                          <td className="py-3.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedMealTokenForQr(b);
+                                setIsMealQrModalOpen(true);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${
+                                isApproved
+                                  ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                              }`}
+                              title={isApproved ? 'View Claimed Meal Record' : 'Show QR Token to Dining Counter'}
+                            >
+                              <QrCode size={13} />
+                              <span>{isApproved ? 'QR (Claimed)' : 'Show QR'}</span>
+                            </button>
                           </td>
                           <td className="py-3.5 text-right text-slate-500 text-[11px]">
                             {b.approvedBy || (isApproved ? 'Dining Staff' : 'Awaiting Collection')}
@@ -2257,11 +2464,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                             +10% Late Fine
                           </span>
                         )}
-                        <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${
-                          isRentCleared
+                        <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${isRentCleared
                             ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                             : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                        }`}>
+                          }`}>
                           {isRentCleared ? '৳0 Due (Cleared)' : `৳${payableRent} Due`}
                         </span>
                       </div>
@@ -2289,15 +2495,15 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   ) : (
                     <button
                       type="button"
+                      disabled={isRedirectingSSL}
                       onClick={() => {
-                        setActiveInvoiceForPay({
+                        handlePayViaSSLCommerz({
                           invoiceId: dueRent?._id,
                           invoiceNo: dueRent?.invoiceNo || `INV-2026-R${currentUser?.userId?.slice(-4) || '8812'}`,
                           feeType: 'Seat Rent',
                           amountBDT: payableRent,
                           month: dueRent?.month || `${new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
                         });
-                        setIsSSLModalOpen(true);
                       }}
                       className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-900/20 transition-all cursor-pointer"
                     >
@@ -2322,11 +2528,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                       <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
                         Dining & Mess (Month-End Actual Consumed)
                       </span>
-                      <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${
-                        hasDue
+                      <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${hasDue
                           ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                           : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                      }`}>
+                        }`}>
                         {hasDue ? `৳${dueMeal.amountBDT} Due` : '৳0 Due'}
                       </span>
                     </div>
@@ -2348,15 +2553,15 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   {hasDue ? (
                     <button
                       type="button"
+                      disabled={isRedirectingSSL}
                       onClick={() => {
-                        setActiveInvoiceForPay({
+                        handlePayViaSSLCommerz({
                           invoiceId: dueMeal._id,
                           invoiceNo: dueMeal.invoiceNo,
                           feeType: 'Monthly Meal Token',
                           amountBDT: dueMeal.amountBDT,
                           month: dueMeal.month || `${new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
                         });
-                        setIsSSLModalOpen(true);
                       }}
                       className="w-full py-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-orange-900/20 transition-all cursor-pointer"
                     >
@@ -2407,15 +2612,15 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   </div>
                   <button
                     type="button"
+                    disabled={isRedirectingSSL}
                     onClick={() => {
-                      setActiveInvoiceForPay({
+                      handlePayViaSSLCommerz({
                         invoiceId: dueRent?._id || dueMeal?._id,
                         invoiceNo: `INV-COMBINED-${new Date().getFullYear()}${currentUser?.userId?.slice(-4) || '9912'}`,
                         feeType: 'Combined Monthly Clearance (Rent + Meal Bill)',
                         amountBDT: combinedTotal,
                         month: `${new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
                       });
-                      setIsSSLModalOpen(true);
                     }}
                     className="py-2.5 px-4 rounded-xl bg-white text-emerald-900 font-bold text-xs hover:bg-emerald-50 transition-all flex items-center gap-1.5 shadow-md shrink-0 cursor-pointer"
                   >
@@ -2485,11 +2690,10 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                         </td>
                         <td className="py-3.5">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                              isPaid
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isPaid
                                 ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                 : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                            }`}
+                              }`}
                           >
                             {inv.status}
                           </span>
@@ -2508,17 +2712,28 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                               <span>Download Receipt</span>
                             </button>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveInvoiceForPay(inv);
-                                setIsSSLModalOpen(true);
-                              }}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm transition-all"
-                            >
-                              <CreditCard size={12} />
-                              <span>Pay ৳{inv.amountBDT}</span>
-                            </button>
+                            <div className="inline-flex items-center gap-1.5 justify-end">
+                              {inv.transactionId && (
+                                <button
+                                  type="button"
+                                  title="Check & Verify SSL Status"
+                                  onClick={() => handleVerifyInvoice(inv)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10px] transition-colors"
+                                >
+                                  <RefreshCw size={11} />
+                                  <span>Verify</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={isRedirectingSSL}
+                                onClick={() => handlePayViaSSLCommerz(inv)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer"
+                              >
+                                <CreditCard size={12} />
+                                <span>Pay ৳{inv.amountBDT}</span>
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -2531,7 +2746,32 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
         </div>
       )}
 
-      {/* SSLCommerz Secure Payment Modal */}
+      {/* Official Provost Circulars & Notices Tab */}
+      {activeTab === 'notices' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <TargetedNoticesWidget
+            role="student"
+            floor={student.floor}
+            title="Official Circulars & Provost Directives for Students"
+            subtitle="Official notifications, administrative circulars, and hall guidelines issued by the Hostel Super & Provost Office."
+          />
+        </div>
+      )}
+
+      {/* SSLCommerz Direct Gateway Redirection Loading Overlay */}
+      {isRedirectingSSL && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center space-y-4 animate-in fade-in duration-200">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-1">
+            <h3 className="text-xl font-black tracking-tight">Connecting to SSLCommerz Bank Gateway</h3>
+            <p className="text-xs text-slate-300 max-w-sm">
+              Please wait... You are being redirected to SSLCommerz 256-Bit Encrypted Hosted Checkout to select your payment option.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Fallback SSLCommerz Modal for Manual Testing */}
       <SSLCommerzModal
         isOpen={isSSLModalOpen}
         onClose={() => setIsSSLModalOpen(false)}
@@ -2563,7 +2803,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
       {/* Room Swap Modal */}
       {swapModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-xl text-xs">
+          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl text-xs max-h-[90vh] overflow-y-auto">
             <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
               Apply for Room Swap / Transfer
             </h2>
@@ -2636,7 +2876,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
       {/* Leave Request Modal */}
       {leaveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-xl text-xs">
+          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl text-xs max-h-[90vh] overflow-y-auto">
             <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
               Apply for Formal Leave / Out-Pass
             </h2>
@@ -2711,7 +2951,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
       {/* Complaint Modal */}
       {complaintModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-xl text-xs">
+          <div className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-2xl text-xs max-h-[90vh] overflow-y-auto">
             <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1">
               Create Maintenance Work Order
             </h2>
@@ -2801,6 +3041,33 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
             if (onShowToast) onShowToast(msg, 'success');
             fetchTransferRequests();
           }}
+        />
+      )}
+
+      {/* Individual Meal Token QR Modal */}
+      {isMealQrModalOpen && selectedMealTokenForQr && (
+        <StudentMealQrModal
+          isOpen={isMealQrModalOpen}
+          onClose={() => {
+            setIsMealQrModalOpen(false);
+            setSelectedMealTokenForQr(null);
+            fetchStudentMeals();
+          }}
+          token={selectedMealTokenForQr}
+          student={student}
+        />
+      )}
+
+      {/* Official Gate Pass QR Modal */}
+      {isGatePassQrModalOpen && selectedGatePassForQr && (
+        <GatePassQrModal
+          isOpen={isGatePassQrModalOpen}
+          onClose={() => {
+            setIsGatePassQrModalOpen(false);
+            setSelectedGatePassForQr(null);
+          }}
+          pass={selectedGatePassForQr}
+          student={student}
         />
       )}
 

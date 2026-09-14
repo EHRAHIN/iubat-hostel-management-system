@@ -58,6 +58,10 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    guardianName: {
+      type: String,
+      default: '',
+    },
     guardianPhone: {
       type: String,
       default: '',

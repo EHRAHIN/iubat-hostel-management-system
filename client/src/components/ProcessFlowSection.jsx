@@ -6,7 +6,7 @@ export default function ProcessFlowSection() {
     {
       step: '01',
       title: 'Submit Application & Survey',
-      desc: 'Students submit academic credentials (CGPA, Department, Year) and answer the 5-minute Smart Searching Roommate questionnaire.',
+      desc: 'Students submit basic academic info and complete a short questionnaire on study hours and living habits.',
       icon: FileText,
       color: 'text-indigo-400',
       bg: 'bg-indigo-500/10',
@@ -14,8 +14,8 @@ export default function ProcessFlowSection() {
     },
     {
       step: '02',
-      title: 'AI Multi-Factor Matching',
-      desc: 'Smart Searching Roommate vector engine compares applicant habits (sleep cycle, study noise, cleanliness) to recommend optimal roommate pairs.',
+      title: 'Roommate Compatibility Match',
+      desc: 'The system compares applicant lifestyle preferences (sleep schedule, study noise, cleanliness) to recommend suitable roommates.',
       icon: Cpu,
       color: 'text-purple-400',
       bg: 'bg-purple-500/10',
@@ -24,7 +24,7 @@ export default function ProcessFlowSection() {
     {
       step: '03',
       title: 'Provost / Super Approval',
-      desc: 'Hostel Super reviews AI suggestions, verifies merit and quota rules, and officially locks the seat allocation on the dashboard.',
+      desc: 'The Hostel Super reviews recommendations, verifies academic merit, and confirms the seat allocation.',
       icon: CheckCircle2,
       color: 'text-emerald-400',
       bg: 'bg-emerald-500/10',

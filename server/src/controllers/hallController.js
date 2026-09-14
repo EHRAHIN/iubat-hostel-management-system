@@ -9,7 +9,23 @@ const RoomTransferRequest = require('../models/RoomTransferRequest');
 exports.getHalls = async (req, res) => {
   try {
     const halls = await Hall.find().sort({ name: 1 });
-    res.status(200).json({ success: true, count: halls.length, data: halls });
+    const dynamicHalls = await Promise.all(
+      halls.map(async (h) => {
+        const rooms = await Room.find({ hallId: h.hallId.toLowerCase() });
+        let totalBeds = 0;
+        let occupiedBeds = 0;
+        rooms.forEach((r) => {
+          totalBeds += r.capacity || (r.beds ? r.beds.length : 0);
+          occupiedBeds += r.occupiedCount || 0;
+        });
+        const hObj = h.toObject();
+        hObj.totalRooms = rooms.length;
+        hObj.totalBeds = totalBeds;
+        hObj.occupiedBeds = occupiedBeds;
+        return hObj;
+      })
+    );
+    res.status(200).json({ success: true, count: dynamicHalls.length, data: dynamicHalls });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -23,7 +39,18 @@ exports.getHallById = async (req, res) => {
       $or: [{ hallId: req.params.id }, { _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null }],
     });
     if (!hall) return res.status(404).json({ success: false, message: 'Hall not found' });
-    res.status(200).json({ success: true, data: hall });
+    const rooms = await Room.find({ hallId: hall.hallId.toLowerCase() });
+    let totalBeds = 0;
+    let occupiedBeds = 0;
+    rooms.forEach((r) => {
+      totalBeds += r.capacity || (r.beds ? r.beds.length : 0);
+      occupiedBeds += r.occupiedCount || 0;
+    });
+    const hObj = hall.toObject();
+    hObj.totalRooms = rooms.length;
+    hObj.totalBeds = totalBeds;
+    hObj.occupiedBeds = occupiedBeds;
+    res.status(200).json({ success: true, data: hObj });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

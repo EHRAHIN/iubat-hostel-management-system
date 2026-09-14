@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import StudentHistoryModal from '../components/StudentHistoryModal';
+import TargetedNoticesWidget from '../components/TargetedNoticesWidget';
 import { 
   Building2, 
+  Bell,
   UserCheck, 
   CalendarCheck, 
   FileText, 
@@ -195,7 +197,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
       studentId: '221004128',
       room: `Room ${prefix}04`,
       type: 'Weekend Out-Pass',
-      duration: 'Mar 01, 2026 to Mar 03, 2026',
+      duration: 'Sep 18, 2026 to Sep 20, 2026',
       destination: 'Permanent Residence, Uttara Sector 4, Dhaka',
       reason: 'Family visit over the weekend.',
       parentConsent: 'SMS Consent Verified (+880 1711 987654)',
@@ -207,7 +209,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
       studentId: '221008115',
       room: `Room ${prefix}02`,
       type: 'Emergency Night Pass',
-      duration: 'Feb 20, 2026 (Night Only)',
+      duration: 'Sep 14, 2026 (Night Only)',
       destination: 'Kurmitola General Hospital, Dhaka',
       reason: 'Visiting hospitalized relative.',
       parentConsent: 'Call Verified by Warden (+880 1912 000111)',
@@ -265,7 +267,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
   const getInitialIncidents = (prefix) => [
     {
       id: 'INC-2026-018',
-      date: 'Feb 17, 2026',
+      date: 'Sep 12, 2026',
       room: `Room ${prefix}08`,
       category: 'Unauthorized Visitor',
       severity: 'Medium',
@@ -275,7 +277,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
     },
     {
       id: 'INC-2026-011',
-      date: 'Feb 04, 2026',
+      date: 'Sep 03, 2026',
       room: `Room ${prefix}06`,
       category: 'Cleanliness Inspection',
       severity: 'Low',
@@ -323,12 +325,13 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
     fetchFloorStudents();
     fetchPendingLeaves();
 
-    // Auto-sync polling every 6 seconds so when student applies for out-pass, it appears live immediately!
+    // Auto-sync polling with visibility check so when student applies for out-pass, it appears live immediately!
     const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       fetchFloorStudents();
       fetchFloorMaintenance();
       fetchPendingLeaves();
-    }, 6000);
+    }, 7000);
 
     return () => clearInterval(pollInterval);
   }, [floorPrefix]);
@@ -390,7 +393,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
     const report = {
       id: `INC-2026-0${incidents.length + 19}`,
-      date: 'Feb 19, 2026',
+      date: 'Sep 14, 2026',
       room: newIncident.room,
       category: newIncident.category,
       severity: newIncident.severity,
@@ -420,13 +423,13 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
       
       {/* 1. Floor Teacher Header Overview (1 Teacher Per Floor Model) */}
-      <div className="rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 shadow-sm mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="ios-glass-card rounded-3xl p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               Floor Teacher & House Tutor Workspace
             </span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <span className="ios-glass-pill text-[11px] font-bold px-3 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300">
               Designated Floor Warden (1 Teacher Per Floor)
             </span>
           </div>
@@ -439,7 +442,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-left sm:text-right">
+          <div className="ios-glass-pill p-3.5 rounded-2xl text-left sm:text-right">
             <div className="text-[11px] text-slate-500 font-medium">Assigned Floor Jurisdiction</div>
             <div className="text-xs font-bold text-slate-900 dark:text-white">{teacher.assignedHall}</div>
             <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold font-mono">{teacher.assignedFloor} • {teacher.roomsCovered}</div>
@@ -447,7 +450,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/60 dark:hover:text-red-300 text-slate-700 dark:text-slate-300 transition-colors"
+            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -455,14 +458,14 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
         </div>
       </div>
 
-      {/* 2. Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto text-xs font-semibold">
+      {/* 2. Navigation Tabs (Apple iOS Liquid Glass Segmented Bar) */}
+      <div className="ios-glass p-1.5 rounded-2xl mb-6 flex items-center gap-1 overflow-x-auto text-xs font-semibold scrollbar-none">
         <button
           onClick={() => setActiveTab('rollcall')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'rollcall'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <CalendarCheck size={15} />
@@ -471,10 +474,10 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
         <button
           onClick={() => setActiveTab('leaves')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'leaves'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <FileText size={15} />
@@ -483,10 +486,10 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
         <button
           onClick={() => setActiveTab('incidents')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'incidents'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <ShieldAlert size={15} />
@@ -495,14 +498,26 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
         <button
           onClick={() => setActiveTab('maintenance')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'maintenance'
-              ? 'border-emerald-700 dark:border-emerald-500 text-emerald-700 dark:text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
           }`}
         >
           <Wrench size={15} />
           <span>Floor Maintenance ({floorMaintenance.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notices')}
+          className={`ios-tap-active flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'notices'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
+          }`}
+        >
+          <Bell size={15} />
+          <span>Provost Directives & Circulars</span>
         </button>
       </div>
 
@@ -976,6 +991,20 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 5: PROVOST DIRECTIVES & CIRCULARS                                     */}
+      {/* ========================================================================= */}
+      {activeTab === 'notices' && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <TargetedNoticesWidget
+            role="teacher"
+            floor={isFloor2 ? 'Floor 2' : 'Floor 1'}
+            title="Official Provost Directives for House Tutors"
+            subtitle={`Official administrative notices, duty instructions, and hall circulars issued to ${teacher.assignedFloor} tutors.`}
+          />
         </div>
       )}
 

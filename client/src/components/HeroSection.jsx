@@ -1,31 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, 
   ArrowRight, 
   CheckCircle2, 
   Bed, 
   Users, 
-  ShieldCheck,
-  Sparkles,
-  Wifi,
-  Zap,
-  Layers,
-  ChevronRight,
-  Activity,
-  Terminal,
-  Clock,
-  Wrench,
-  Check
+  ShieldCheck, 
+  Sparkles, 
+  Wifi, 
+  Zap, 
+  Layers, 
+  ChevronRight, 
+  Activity, 
+  Terminal, 
+  Clock, 
+  Wrench, 
+  Check 
 } from 'lucide-react';
+import { api } from '../services/api';
 
-export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
+export default function HeroSection({ rooms: initialRooms = [], onOpenApplyModal, onScrollToVacancy }) {
   // Interactive SaaS Terminal Preview Tab
   const [activeHeroTab, setActiveHeroTab] = useState('radar'); // 'radar' | 'ai' | 'workflow'
+  const [liveRooms, setLiveRooms] = useState(initialRooms || []);
+
+  useEffect(() => {
+    if (initialRooms && initialRooms.length > 0) {
+      setLiveRooms(initialRooms);
+    } else {
+      api.getRooms()
+        .then((res) => {
+          if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+            setLiveRooms(res.data);
+          }
+        })
+        .catch((err) => console.log('Error loading rooms in HeroSection:', err.message));
+    }
+  }, [initialRooms]);
+
+  const roomsList = liveRooms && liveRooms.length > 0 ? liveRooms : (initialRooms || []);
+
+  // Dynamic Live Vacancy Calculations from Database
+  const padmaRooms = roomsList && roomsList.length > 0
+    ? roomsList.filter((r) => (r.hallName || r.hallId || '').toLowerCase().includes('padma'))
+    : [];
+
+  const padmaCapacity = padmaRooms.length > 0
+    ? padmaRooms.reduce((sum, r) => sum + (r.capacity || (r.beds ? r.beds.length : 0)), 0)
+    : 34;
+
+  const padmaOccupied = padmaRooms.length > 0
+    ? padmaRooms.reduce((sum, r) => sum + (r.beds ? r.beds.filter((b) => b.isOccupied).length : (r.occupiedCount || 0)), 0)
+    : 4;
+
+  const padmaVacant = Math.max(0, padmaCapacity - padmaOccupied);
+  const padmaOccupancyPct = padmaCapacity > 0 ? ((padmaOccupied / padmaCapacity) * 100).toFixed(1) : '11.8';
+  const padmaRoomsCount = padmaRooms.length > 0 ? padmaRooms.length : 16;
+
+  // Real occupant for live Smart Searching Roommate showcase
+  const occupiedRoomWithStudent = roomsList.find(r => r.beds && r.beds.some(b => b.isOccupied && b.studentName));
+  const activeStudentOccupant = occupiedRoomWithStudent?.beds?.find(b => b.isOccupied && b.studentName);
+
+  const matchedStudentName = activeStudentOccupant?.studentName || 'Sadiya Afrin';
+  const matchedStudentDept = activeStudentOccupant?.studentDept || 'BBA';
+  const matchedRoomNo = occupiedRoomWithStudent?.roomNumber || '105';
+  const matchedBed = activeStudentOccupant?.bedLabel || 'Bed A';
+  const matchedTutor = occupiedRoomWithStudent?.assignedHouseTutor || 'Prof. Anisur Rahman';
 
   return (
     <section className="relative overflow-hidden py-14 md:py-24 saas-dot-grid saas-mesh-gradient border-b border-slate-200/80 dark:border-slate-800/80 transition-all">
       {/* Decorative ambient glow orbs */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-tr from-emerald-500/15 via-teal-500/10 to-transparent blur-[140px] pointer-events-none rounded-full animate-pulse-glow" />
+
+      {/* Ambient decorative glow orbs */}
+      <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -34,10 +82,10 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             
             {/* Announcement Pill */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 dark:bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-semibold shadow-xs hover:border-emerald-500/40 transition-all cursor-pointer">
+            <div className="ios-glass-pill ios-tap-active inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-emerald-800 dark:text-emerald-300 text-xs font-semibold cursor-pointer">
               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
               <Sparkles size={13} className="text-emerald-600 dark:text-emerald-400" />
-              <span>Smart Searching Roommate 2.0 • 4-Tier Automated Housing Workflow</span>
+              <span>IUBAT Student Residential Portal • Spring 2026</span>
               <ChevronRight size={13} className="text-emerald-500" />
             </div>
 
@@ -48,14 +96,14 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
 
             {/* Subtitle */}
             <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
-              A centralized digital platform engineered for IUBAT residential operations. Streamlining merit-based seat allocations, real-time vacancy monitoring, digital out-passes, Smart Searching Roommate pairing, and multi-tier governance.
+              A centralized digital platform for IUBAT students and hostel administration. Easily check room vacancies, apply for available seats, request out-passes, find compatible roommates, and manage mess billing.
             </p>
 
             {/* Call to Actions */}
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 pt-2">
               <button
                 onClick={() => onOpenApplyModal()}
-                className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs md:text-sm shadow-lg shadow-emerald-900/20 hover:shadow-emerald-900/30 hover:scale-[1.02] transition-all"
+                className="ios-tap-active flex items-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs md:text-sm shadow-lg shadow-emerald-700/25 border border-white/20 transition-all cursor-pointer"
               >
                 <span>Apply for Available Seat</span>
                 <ArrowRight size={15} />
@@ -63,10 +111,10 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
 
               <button
                 onClick={onScrollToVacancy}
-                className="flex items-center gap-2 px-5 py-3.5 rounded-xl saas-card hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-xs md:text-sm transition-all hover:scale-[1.02]"
+                className="ios-glass-pill ios-tap-active flex items-center gap-2 px-5 py-3.5 rounded-full text-slate-800 dark:text-slate-200 font-semibold text-xs md:text-sm cursor-pointer"
               >
                 <Bed size={16} className="text-emerald-600 dark:text-emerald-400" />
-                <span>Explore Live Seat Radar</span>
+                <span>View Room Vacancies</span>
               </button>
             </div>
 
@@ -78,15 +126,15 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
               </div>
               <div className="flex items-center gap-1.5 font-medium">
                 <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Live Vacant Bed Radar</span>
+                <span>Real-time Bed Vacancy</span>
               </div>
               <div className="flex items-center gap-1.5 font-medium">
                 <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Smart Searching Roommate</span>
+                <span>Roommate Matching</span>
               </div>
               <div className="flex items-center gap-1.5 font-medium">
                 <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>4-Tier Maintenance Chain</span>
+                <span>Quick Maintenance Support</span>
               </div>
             </div>
 
@@ -112,41 +160,41 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
               </div>
 
               {/* Segmented Control Switcher */}
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl mb-4 text-[11px] font-semibold">
+              <div className="ios-glass-pill grid grid-cols-3 gap-1.5 p-1 rounded-2xl mb-4 text-[11px] font-semibold">
                 <button
                   onClick={() => setActiveHeroTab('radar')}
-                  className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  className={`ios-tap-active py-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     activeHeroTab === 'radar'
-                      ? 'bg-white dark:bg-[#0d121f] text-emerald-700 dark:text-emerald-300 font-bold shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-white/90 dark:bg-emerald-600 text-emerald-800 dark:text-white font-bold shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Building2 size={12} />
-                  <span>Seat Radar</span>
+                  <span>Room Vacancy</span>
                 </button>
 
                 <button
                   onClick={() => setActiveHeroTab('ai')}
-                  className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  className={`ios-tap-active py-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     activeHeroTab === 'ai'
-                      ? 'bg-white dark:bg-[#0d121f] text-emerald-700 dark:text-emerald-300 font-bold shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-white/90 dark:bg-emerald-600 text-emerald-800 dark:text-white font-bold shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Sparkles size={12} />
-                  <span>Smart Match</span>
+                  <span>Roommate Match</span>
                 </button>
 
                 <button
                   onClick={() => setActiveHeroTab('workflow')}
-                  className={`py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                  className={`ios-tap-active py-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     activeHeroTab === 'workflow'
-                      ? 'bg-white dark:bg-[#0d121f] text-emerald-700 dark:text-emerald-300 font-bold shadow-xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-white/90 dark:bg-emerald-600 text-emerald-800 dark:text-white font-bold shadow-sm'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Layers size={12} />
-                  <span>4-Tier Flow</span>
+                  <span>Approval Flow</span>
                 </button>
               </div>
 
@@ -156,14 +204,19 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
                   <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-[#060911]/80 border border-slate-200/60 dark:border-slate-800/60 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-900 dark:text-white">Padma Residential Hall (Campus Male Residence)</span>
-                      <span className="font-mono text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">28 Vacant Beds</span>
+                      <span className="font-mono text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
+                        {padmaVacant} Vacant Beds
+                      </span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-                      <div className="bg-gradient-to-r from-emerald-600 to-teal-500 h-full rounded-full transition-all" style={{ width: '82.5%' }}></div>
+                      <div 
+                        className="bg-gradient-to-r from-emerald-600 to-teal-500 h-full rounded-full transition-all duration-500" 
+                        style={{ width: `${padmaOccupancyPct}%` }}
+                      ></div>
                     </div>
                     <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>Floor 1 & 2 • Rooms 101–208</span>
-                      <span>82.5% Occupancy</span>
+                      <span>Floor 1 & 2 • {padmaRoomsCount} Rooms</span>
+                      <span>{padmaOccupancyPct}% Occupancy ({padmaOccupied}/{padmaCapacity} Beds)</span>
                     </div>
                   </div>
 
@@ -172,54 +225,54 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
                       onClick={() => onOpenApplyModal('Padma Residential Hall')}
                       className="w-full py-2.5 px-3 rounded-xl bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition-colors text-center shadow-sm"
                     >
-                      Book Padma Hall Seat →
+                      Book Padma Hall Seat ({padmaVacant} Available) →
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* TAB 2: SMART SEARCHING ROOMMATE MATCH PREVIEW */}
+              {/* TAB 2: ROOMMATE MATCH PREVIEW */}
               {activeHeroTab === 'ai' && (
                 <div className="space-y-3 animate-fade-in text-xs">
                   <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
                         <Sparkles size={13} className="text-emerald-600 dark:text-emerald-400 animate-pulse" />
-                        <span>Live AI Compatibility Match:</span>
+                        <span>Roommate Compatibility Match:</span>
                       </span>
                       <span className="font-black text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full text-[11px]">
-                        96.4% Match
+                        96% Match
                       </span>
                     </div>
 
                     <div className="text-slate-700 dark:text-slate-300 text-[11px] space-y-1">
-                      <div>Paired Roommate: <strong>Real Registered Student Occupant</strong></div>
-                      <div>Proposed Slot: <strong>Padma Hall, Floor 1 • Room 101 (Bed A)</strong></div>
-                      <div>House Tutor: <strong>Dr. Tariqul Islam</strong></div>
+                      <div>Paired Roommate: <strong className="text-slate-900 dark:text-white">{matchedStudentName} ({matchedStudentDept})</strong></div>
+                      <div>Room Allocation: <strong className="text-emerald-700 dark:text-emerald-300">Padma Hall • Room {matchedRoomNo} ({matchedBed})</strong></div>
+                      <div>House Tutor: <strong className="text-slate-900 dark:text-white">{matchedTutor}</strong></div>
                     </div>
 
                     <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/40 grid grid-cols-2 gap-1 text-[10px] text-slate-600 dark:text-slate-400">
                       <div className="flex items-center gap-1">
                         <Check size={12} className="text-emerald-600" />
-                        <span>Night Owl Synergized</span>
+                        <span>Night Study Hours</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Check size={12} className="text-emerald-600" />
-                        <span>Silent Study Aligned</span>
+                        <span>Quiet Study Habit</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Check size={12} className="text-emerald-600" />
-                        <span>Strict Cleanliness</span>
+                        <span>Clean Living Habit</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Check size={12} className="text-emerald-600" />
-                        <span>Prayer Routine Matched</span>
+                        <span>Regular Schedule</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-[10px] text-slate-500 text-center">
-                    Instant 7-question lifestyle questionnaire runs after student registration.
+                    Simple lifestyle and study habit preferences help pair compatible roommates.
                   </div>
                 </div>
               )}
@@ -229,7 +282,7 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
                 <div className="space-y-3 animate-fade-in text-xs">
                   <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-[#060911]/80 border border-slate-200/60 dark:border-slate-800/60 space-y-2">
                     <span className="font-bold text-slate-900 dark:text-white block text-xs">
-                      End-to-End Governance Chain of Custody
+                      Simple 4-Step Maintenance & Repair Process
                     </span>
 
                     <div className="space-y-2 text-[11px]">
@@ -250,12 +303,6 @@ export default function HeroSection({ onOpenApplyModal, onScrollToVacancy }) {
                         <span>Staff: Executes repair & confirms complete</span>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="text-center">
-                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
-                      ✓ Real-time MongoDB synchronization across all 4 stakeholders
-                    </span>
                   </div>
                 </div>
               )}

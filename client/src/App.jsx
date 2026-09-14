@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import StatsBar from './components/StatsBar';
@@ -6,15 +6,18 @@ import SeatRadarSection from './components/SeatRadarSection';
 import ActorPortalsSection from './components/ActorPortalsSection';
 import ServicesSection from './components/ServicesSection';
 import NoticeBoardSection from './components/NoticeBoardSection';
-import StudentDashboard from './pages/StudentDashboard';
-import FloorTeacherDashboard from './pages/FloorTeacherDashboard';
-import StaffDashboard from './pages/StaffDashboard';
-import ParentDashboard from './pages/ParentDashboard';
-import SuperAdminDashboard from './pages/SuperAdminDashboard';
-import HostelSuperDashboard from './pages/HostelSuperDashboard';
+
+// High-Performance Dynamic Code-Splitting: Dashboards load on-demand instead of monolithic 1.5MB block
+const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
+const FloorTeacherDashboard = lazy(() => import('./pages/FloorTeacherDashboard'));
+const StaffDashboard = lazy(() => import('./pages/StaffDashboard'));
+const ParentDashboard = lazy(() => import('./pages/ParentDashboard'));
+const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard'));
+const HostelSuperDashboard = lazy(() => import('./pages/HostelSuperDashboard'));
 import ApplySeatModal from './components/ApplySeatModal';
 import PortalLoginModal from './components/PortalLoginModal';
 import SmartSeatAssignModal from './components/SmartSeatAssignModal';
+import PaymentResultView from './components/PaymentResultView';
 import Toast from './components/Toast';
 import Footer from './components/Footer';
 import './App.css';
@@ -81,12 +84,65 @@ export default function App() {
   const [preselectedRoomNo, setPreselectedRoomNo] = useState('');
   const [preselectedBed, setPreselectedBed] = useState('');
 
+  // Live rooms from MongoDB for real vacancy monitoring
+  const [rooms, setRooms] = useState([]);
+
+  const fetchRooms = async () => {
+    try {
+      const res = await api.getRooms();
+      if (res?.data) {
+        setRooms(res.data);
+      }
+    } catch (err) {
+      console.log('Error fetching live rooms:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchRooms();
+  }, [currentView]);
+
   // Toast feedback
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
   };
+
+  // Track SSLCommerz payment callback view
+  const [isPaymentResultView, setIsPaymentResultView] = useState(() => {
+    try {
+      const p = window.location.pathname.toLowerCase();
+      const q = new URLSearchParams(window.location.search);
+      return p.includes('/payment/') || Boolean(q.get('tran_id'));
+    } catch {
+      return false;
+    }
+  });
+
+  // Handle return parameters from SSLCommerz Hosted Gateway
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tranId = urlParams.get('tran_id');
+      const invoiceNo = urlParams.get('invoiceNo');
+      const status = urlParams.get('status');
+      const reason = urlParams.get('reason');
+
+      if (tranId || invoiceNo) {
+        setIsPaymentResultView(true);
+        if (status === 'failed' || reason) {
+          showToast(`SSLCommerz Payment ${reason ? `failed: ${reason}` : 'was not completed'}.`, 'error');
+        } else if (status === 'cancelled') {
+          showToast('SSLCommerz Payment was cancelled by user.', 'info');
+        } else {
+          showToast(`✅ Payment for Invoice ${invoiceNo || tranId} completed successfully via SSLCommerz!`, 'success');
+        }
+      }
+    } catch (err) {
+      console.error('SSL URL callback parse error:', err);
+    }
+  }, []);
 
   // Synchronize Dark Mode class with both HTML document and body
   useEffect(() => {
@@ -158,12 +214,14 @@ export default function App() {
 
   // Handlers
   const handleOpenApply = (hall = '', roomType = '', roomNo = '', bedLabel = '', floor = 'Floor 1') => {
-    setPreselectedHall(hall);
-    setPreselectedRoomType(roomType);
-    setPreselectedRoomNo(roomNo);
-    setPreselectedBed(bedLabel);
-    setPreselectedFloor(floor);
-    setIsApplyModalOpen(true);
+    // If student is already logged in, redirect directly to student dashboard
+    if (currentUser && currentUserRole === 'student') {
+      setCurrentView('student-dashboard');
+      showToast('Redirected to your Student Residential Workspace.', 'info');
+      return;
+    }
+    // Requirement: "apply for seat e click korle registration er option e jabe"
+    handleOpenPortal('student', 'register');
   };
 
   const handleOpenPortal = (role = 'student', mode = 'login') => {
@@ -282,9 +340,55 @@ export default function App() {
     }
   };
 
+  // Dynamic Page-specific Watermark ("Jolchap")
+  const getWatermarkInfo = () => {
+    switch (currentView) {
+      case 'student-dashboard':
+        return { main: 'Student', sub: 'Student Residence' };
+      case 'admin-dashboard':
+        return { main: 'Admin', sub: 'Super Administrator' };
+      case 'super-dashboard':
+        return { main: 'Hostelsuper', sub: 'Hostel Provost' };
+      case 'teacher-dashboard':
+        return { main: 'Teacher', sub: 'House Tutor' };
+      case 'staff-dashboard':
+        return { main: 'Staff', sub: 'Hostel Operations' };
+      case 'parent-dashboard':
+        return { main: 'Parent', sub: 'Guardian Portal' };
+      default:
+        return { main: 'IUBAT', sub: 'ESTD 1991' };
+    }
+  };
+
+  const watermark = getWatermarkInfo();
+
   return (
-    <div className={`min-h-screen flex flex-col bg-slate-50 dark:bg-[#060911] text-slate-900 dark:text-slate-100 font-['Inter'] transition-colors ${darkMode ? 'dark' : ''}`}>
+    <div className={`min-h-screen flex flex-col bg-slate-50 dark:bg-[#060911] text-slate-900 dark:text-slate-100 font-['Inter'] transition-colors relative ${darkMode ? 'dark' : ''}`}>
       
+      {/* Global Dynamic Page Watermark ("Jolchap") & Ambient Apple iOS Aurora Gradients (Active on all pages & dashboards) */}
+      <div className="fixed inset-0 pointer-events-none select-none overflow-hidden z-0 transform-gpu" style={{ transform: 'translate3d(0,0,0)', willChange: 'transform' }}>
+        {/* Top Right iOS Emerald-Teal Orb */}
+        <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-transparent blur-[130px] dark:from-emerald-500/20 dark:via-teal-500/15 transform-gpu" style={{ transform: 'translate3d(0,0,0)' }} />
+        {/* Mid Left iOS Cyan-Sky Orb */}
+        <div className="absolute top-1/3 -left-32 w-[550px] h-[550px] rounded-full bg-gradient-to-tr from-cyan-500/10 via-emerald-500/10 to-transparent blur-[140px] dark:from-cyan-500/15 dark:via-emerald-500/15 transform-gpu" style={{ transform: 'translate3d(0,0,0)' }} />
+        {/* Lower Right iOS Amber-Emerald Orb */}
+        <div className="absolute bottom-1/4 -right-20 w-[500px] h-[500px] rounded-full bg-gradient-to-tl from-emerald-500/10 via-teal-500/10 to-transparent blur-[130px] dark:from-emerald-500/15 dark:via-teal-500/15 transform-gpu" style={{ transform: 'translate3d(0,0,0)' }} />
+
+        {/* Dynamic Page Name Watermark ("Jolchap") */}
+        <div 
+          key={watermark.main}
+          className="absolute -right-4 sm:right-6 md:right-12 lg:right-16 bottom-6 md:bottom-12 opacity-[0.045] dark:opacity-[0.065] pointer-events-none select-none text-right font-serif font-black text-6xl sm:text-[110px] md:text-[160px] lg:text-[220px] leading-none text-emerald-950 dark:text-emerald-300 tracking-tighter uppercase transition-all duration-700"
+        >
+          {watermark.main}
+        </div>
+        <div 
+          key={watermark.sub}
+          className="absolute left-4 sm:left-8 top-20 sm:top-24 opacity-[0.02] dark:opacity-[0.035] pointer-events-none select-none font-serif font-black text-2xl sm:text-4xl md:text-5xl tracking-widest text-slate-900 dark:text-white uppercase transition-all duration-700"
+        >
+          {watermark.sub}
+        </div>
+      </div>
+
       {/* Global Navigation Bar */}
       <Navbar
         darkMode={darkMode}
@@ -296,20 +400,34 @@ export default function App() {
       />
 
       {/* Main Content Router */}
-      <main className="flex-1">
-        {(currentView === 'home' || !currentUser) && (
+      <main className="flex-1 relative z-10">
+        {isPaymentResultView ? (
+          <PaymentResultView
+            currentUser={currentUser}
+            onNavigate={(targetView) => {
+              setIsPaymentResultView(false);
+              window.history.replaceState({}, document.title, '/');
+              if (targetView) setCurrentView(targetView);
+            }}
+          />
+        ) : (
           <>
+            {currentView === 'home' && (
+          <>
+
             {/* 1. IUBAT Hero Section with Student Verification Terminal */}
             <HeroSection
+              rooms={rooms}
               onOpenApplyModal={() => handleOpenApply()}
               onScrollToVacancy={handleScrollToVacancy}
             />
 
             {/* 2. Key Metrics Bar */}
-            <StatsBar />
+            <StatsBar rooms={rooms} />
 
             {/* 3. Hostel Blocks & Interactive Floor Map Matrix */}
             <SeatRadarSection
+              rooms={rooms}
               onApplyForHall={(hall, roomType, roomNo, bedLabel, floor) => handleOpenApply(hall, roomType, roomNo, bedLabel, floor)}
             />
 
@@ -326,55 +444,90 @@ export default function App() {
           </>
         )}
 
-        {currentView === 'student-dashboard' && (
-          <StudentDashboard
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onShowToast={showToast}
-            onOpenSmartAssign={() => handleOpenSmartAssign(currentUser)}
-          />
-        )}
+        <Suspense fallback={
+          <div className="min-h-[75vh] flex flex-col items-center justify-center p-8 text-center space-y-4 animate-fade-in">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/10 animate-pulse">
+              <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Loading Workspace...</h3>
+              <p className="text-xs text-slate-400">Rendering institutional environment at 120 FPS</p>
+            </div>
+          </div>
+        }>
+          {currentView === 'student-dashboard' && (
+            <StudentDashboard
+              currentUser={currentUser || {
+                id: '221004128',
+                userId: '221004128',
+                name: 'Tanvir Hasan',
+                email: 'student.cse@iubat.edu',
+                role: 'student',
+                department: 'Computer Science and Engineering (CSE)',
+                cgpa: 3.82,
+                hall: 'Padma Residential Hall',
+                floor: 'Floor 1',
+                room: 'Padma-104',
+                seatNo: 'Bed A',
+                roomType: 'Double Shared Room',
+                preferredCapacity: 2,
+                allocationStatus: 'Allocated',
+                phone: '+880 1712 345678',
+                guardianName: 'Md. Rafiqul Islam',
+                guardianPhone: '+880 1819 987654',
+                floorTeacher: 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)',
+                floorTeacherPhone: '+880 1819 123456',
+                balance: '৳ 4,500'
+              }}
+              onLogout={handleLogout}
+              onShowToast={showToast}
+              onOpenSmartAssign={() => handleOpenSmartAssign(currentUser)}
+            />
+          )}
 
-        {currentView === 'teacher-dashboard' && currentUser && (
-          <FloorTeacherDashboard
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onShowToast={showToast}
-          />
-        )}
+          {currentView === 'teacher-dashboard' && currentUser && (
+            <FloorTeacherDashboard
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              onShowToast={showToast}
+            />
+          )}
 
-        {currentView === 'staff-dashboard' && (
-          <StaffDashboard
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onShowToast={showToast}
-          />
-        )}
+          {currentView === 'staff-dashboard' && (
+            <StaffDashboard
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              onShowToast={showToast}
+            />
+          )}
 
-        {currentView === 'parent-dashboard' && (
-          <ParentDashboard
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onShowToast={showToast}
-          />
-        )}
+          {currentView === 'parent-dashboard' && (
+            <ParentDashboard
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              onShowToast={showToast}
+            />
+          )}
 
-        {currentView === 'super-dashboard' && (
-          <HostelSuperDashboard
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onShowToast={showToast}
-          />
-        )}
+          {currentView === 'super-dashboard' && (
+            <HostelSuperDashboard
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              onShowToast={showToast}
+            />
+          )}
 
-        {currentView === 'admin-dashboard' && (
-          <SuperAdminDashboard
-            currentUser={currentUser}
-            onLogout={handleLogout}
-            onShowToast={showToast}
-          />
-        )}
-      </main>
+          {currentView === 'admin-dashboard' && (
+            <SuperAdminDashboard
+              currentUser={currentUser}
+              onLogout={handleLogout}
+              onShowToast={showToast}
+            />
+          )}
+        </Suspense>
+      </>
+    )}
+  </main>
 
       {/* Institutional Footer */}
       <Footer />

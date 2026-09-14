@@ -3,6 +3,129 @@ const User = require('../models/User');
 const Room = require('../models/Room');
 const Application = require('../models/Application');
 
+// Evaluates exact matches across the 6 core dimensions: Sleep, Study, Cleanliness, Religious, Department, Behavior
+const evaluateOptionsMatch = (p1, dept1, p2, dept2) => {
+  const s1 = p1?.sleepSchedule || 'night-owl';
+  const s2 = p2?.sleepSchedule || 'night-owl';
+  const st1 = p1?.studyHabit || 'moderate-study';
+  const st2 = p2?.studyHabit || 'moderate-study';
+  const c1 = p1?.cleanliness || 'strictly-clean';
+  const c2 = p2?.cleanliness || 'strictly-clean';
+  const r1 = p1?.religious || 'regular-practicing';
+  const r2 = p2?.religious || 'regular-practicing';
+  const b1 = p1?.behavior || 'balanced';
+  const b2 = p2?.behavior || 'balanced';
+
+  const d1 = (dept1 || 'CSE').toLowerCase();
+  const d2 = (dept2 || 'CSE').toLowerCase();
+  const deptPref = p1?.departmentPreference || 'same-dept';
+
+  const matchedOptions = [];
+
+  // 1. Sleep Schedule
+  const sleepMatch = s1 === s2 || s1 === 'flexible' || s2 === 'flexible' ||
+    ((s1 === 'early-riser' || s1 === 'early-bird') && (s2 === 'early-riser' || s2 === 'early-bird'));
+  if (sleepMatch) {
+    matchedOptions.push({
+      key: 'sleep',
+      category: 'Sleep Routine',
+      label: s1 === 'night-owl' && s2 === 'night-owl'
+        ? 'Sleep: Night Owl (1:00 AM+ Late Study)'
+        : (s1 === 'early-riser' || s2 === 'early-riser')
+        ? 'Sleep: Early Riser (6:00 AM Routine)'
+        : 'Sleep: Compatible Flexible Sleep Routine',
+    });
+  }
+
+  // 2. Study Habit
+  const studyMatch = st1 === st2 ||
+    ((st1 === 'intense-silent' || st1 === 'silent') && (st2 === 'intense-silent' || st2 === 'silent')) ||
+    ((st1 === 'less-study-casual' || st1 === 'group') && (st2 === 'less-study-casual' || st2 === 'group'));
+  if (studyMatch) {
+    matchedOptions.push({
+      key: 'study',
+      category: 'Study Habit',
+      label: st1 === 'intense-silent'
+        ? 'Study: Silent Academic Focus'
+        : st1 === 'less-study-casual'
+        ? 'Study: Casual / Group Study'
+        : 'Study: Moderate Study Hours',
+    });
+  }
+
+  // 3. Hygiene & Cleanliness
+  const cleanMatch = c1 === c2 || c1 === 'flexible' || c2 === 'flexible';
+  if (cleanMatch) {
+    matchedOptions.push({
+      key: 'cleanliness',
+      category: 'Room Hygiene',
+      label: c1 === 'strictly-clean' && c2 === 'strictly-clean'
+        ? 'Hygiene: High Cleanliness Discipline'
+        : 'Hygiene: Shared Room Tidiness',
+    });
+  }
+
+  // 4. Religious / Daily Lifestyle
+  const relMatch = r1 === r2 || r1 === 'flexible' || r2 === 'flexible';
+  if (relMatch) {
+    matchedOptions.push({
+      key: 'religious',
+      category: 'Lifestyle Practice',
+      label: r1 === 'regular-practicing' && r2 === 'regular-practicing'
+        ? 'Lifestyle: Regular Prayer Routine'
+        : 'Lifestyle: Harmonious Daily Routine',
+    });
+  }
+
+  // 5. Department Synergy
+  const isComputingDept = (d) => d.includes('cse') || d.includes('computer') || d.includes('software');
+  const isBbaDept = (d) => d.includes('bba') || d.includes('business');
+  const isEeeDept = (d) => d.includes('eee') || d.includes('electrical');
+  const isCivilDept = (d) => d.includes('civil') || d.includes('ce');
+  const isSameDept = (isComputingDept(d1) && isComputingDept(d2)) ||
+                     (isBbaDept(d1) && isBbaDept(d2)) ||
+                     (isEeeDept(d1) && isEeeDept(d2)) ||
+                     (isCivilDept(d1) && isCivilDept(d2)) ||
+                     d1 === d2;
+  const deptMatch = deptPref === 'any-dept' || isSameDept;
+  if (deptMatch) {
+    matchedOptions.push({
+      key: 'department',
+      category: 'Department Synergy',
+      label: isSameDept
+        ? `Dept: ${dept1 || 'CSE'} Peer Study Synergy`
+        : 'Dept: Interdisciplinary Academic Exchange',
+    });
+  }
+
+  // 6. Behavior / Room Dynamic
+  const behMatch = b1 === b2 || b1 === 'balanced' || b2 === 'balanced';
+  if (behMatch) {
+    matchedOptions.push({
+      key: 'behavior',
+      category: 'Room Dynamic',
+      label: b1 === 'quiet-introvert' && b2 === 'quiet-introvert'
+        ? 'Dynamic: Quiet & Private Space'
+        : b1 === 'friendly-extrovert' && b2 === 'friendly-extrovert'
+        ? 'Dynamic: Friendly & Social Room'
+        : 'Dynamic: Balanced Room Dynamic',
+    });
+  }
+
+  const totalCriteria = 6;
+  const matchedCount = matchedOptions.length;
+  // Exact percentage: e.g. 6/6 = 100%, 5/6 = 83%, 4/6 = 67%, 3/6 = 50%
+  const matchScore = Math.round((matchedCount / totalCriteria) * 100);
+
+  return {
+    matchedOptions,
+    matchedCount,
+    totalCriteria,
+    matchScore,
+    matchReasons: matchedOptions.map((o) => o.label),
+  };
+};
+
 // @desc    Smart Roommate Match & Automatic Seat Allocation based on comprehensive lifestyle/academic traits
 // @route   POST /api/roommate-matcher/smart-assign
 exports.smartAssignSeat = async (req, res) => {
@@ -19,9 +142,8 @@ exports.smartAssignSeat = async (req, res) => {
     const sDept = department || sUser?.department || 'CSE';
     const sHallPref = preferredHall || sUser?.hall || 'Padma Residential Hall (Male)';
 
-    const isMeghna = sHallPref.toLowerCase().includes('meghna');
-    const hallId = isMeghna ? 'meghna' : 'padma';
-    const hallName = isMeghna ? 'Meghna Residential Hall (Female)' : 'Padma Residential Hall (Male)';
+    const hallId = 'padma';
+    const hallName = 'Padma Residential Hall';
 
     const prefs = {
       sleepSchedule: preferences?.sleepSchedule || sUser?.preferences?.sleepSchedule || 'night-owl',
@@ -73,7 +195,7 @@ exports.smartAssignSeat = async (req, res) => {
         capacity: 2,
         occupiedCount: 0,
         status: 'Available',
-        assignedHouseTutor: isMeghna ? 'Dr. Nusrat Jahan' : 'Dr. Tariqul Islam',
+        assignedHouseTutor: 'Dr. Tariqul Islam',
         beds: [
           { bedLabel: 'Bed A', isOccupied: false },
           { bedLabel: 'Bed B', isOccupied: false },
@@ -113,92 +235,37 @@ exports.smartAssignSeat = async (req, res) => {
             ],
           });
           const exPrefs = existingStudent?.preferences || {};
+          const exDept = existingStudent?.department || existingOccupantBed.studentDept || sDept;
 
-          // 5 Core Survey Dimensions: Sleep, Study, Cleanliness, Religious, Behavior
-          const criteriaList = [
-            {
-              id: 'sleepSchedule',
-              match: () => {
-                const s1 = prefs.sleepSchedule;
-                const s2 = exPrefs.sleepSchedule || 'early-riser';
-                return s1 === s2 || (s1 === 'early-riser' && s2 === 'early-bird') || (s1 === 'early-bird' && s2 === 'early-riser');
-              },
-              reason: () => `Synchronized sleep cycle: both prefer ${prefs.sleepSchedule === 'night-owl' ? 'Late-Night Study (1:00 AM+)' : prefs.sleepSchedule === 'flexible' ? 'Flexible Routine' : 'Early Rising Routine'}`,
-            },
-            {
-              id: 'studyHabit',
-              match: () => {
-                const s1 = prefs.studyHabit;
-                const s2 = exPrefs.studyHabit || 'moderate-study';
-                return s1 === s2 || (s1 === 'intense-silent' && s2 === 'silent') || (s1 === 'less-study-casual' && s2 === 'group');
-              },
-              reason: () => `Matched study environment: dedicated to ${prefs.studyHabit === 'intense-silent' || prefs.studyHabit === 'silent' ? 'silent & deep academic focus' : prefs.studyHabit === 'less-study-casual' || prefs.studyHabit === 'group' ? 'casual & group study' : 'moderate regular study hours'}`,
-            },
-            {
-              id: 'cleanliness',
-              match: () => {
-                const s1 = prefs.cleanliness;
-                const s2 = exPrefs.cleanliness || 'strictly-clean';
-                return s1 === s2;
-              },
-              reason: () => `Aligned sanitization discipline: high tidiness & room hygiene`,
-            },
-            {
-              id: 'religious',
-              match: () => {
-                const s1 = prefs.religious;
-                const s2 = exPrefs.religious || 'regular-practicing';
-                return s1 === s2;
-              },
-              reason: () => `Congruent daily prayer & lifestyle routine agreement`,
-            },
-            {
-              id: 'behavior',
-              match: () => {
-                const s1 = prefs.behavior;
-                const s2 = exPrefs.behavior || 'balanced';
-                return s1 === s2;
-              },
-              reason: () => `Harmonious personality vibe: both prefer ${prefs.behavior === 'quiet-introvert' ? 'quiet & private room vibe' : prefs.behavior === 'friendly-extrovert' ? 'friendly & social atmosphere' : 'balanced room vibe'}`,
-            },
-          ];
-
-          const matchedItems = criteriaList.filter((c) => c.match());
-          const matchedCount = matchedItems.length;
-          const totalCriteria = criteriaList.length; // 5
-
-          // Exact percentage calculation: 5/5 = 100%, 4/5 = 80%, 3/5 = 60%, 2/5 = 40%, 1/5 = 20%
-          const finalMatchScore = Math.round((matchedCount / totalCriteria) * 100);
-          matchedItems.forEach((c) => reasons.push(c.reason()));
-
-          // Optional: Department synergy note if applicable
-          if (prefs.departmentPreference === 'same-dept' && (existingStudent?.department === sDept || existingOccupantBed.studentDept === sDept)) {
-            reasons.push(`Same academic department: ${sDept} coursework & peer collaboration`);
-          }
+          // Compute exact option matches across the 6 core criteria
+          const evalResult = evaluateOptionsMatch(prefs, sDept, exPrefs, exDept);
 
           roomMateInfo = {
             name: existingStudent?.name || existingOccupantBed.studentName || 'Resident Roommate',
             userId: existingStudent?.userId || existingOccupantBed.studentId || '',
-            department: existingStudent?.department || existingOccupantBed.studentDept || sDept,
+            department: exDept,
             cgpa: existingStudent?.cgpa ? String(existingStudent.cgpa) : '3.75',
             phone: existingStudent?.phone || '+880 1912 345678',
             seatNo: existingOccupantBed.bedLabel || 'Bed A',
-            matchScore: finalMatchScore,
-            matchReasons: reasons.length > 0 ? reasons : ['Roommate placement in shared living accommodation'],
+            matchScore: evalResult.matchScore,
+            matchedCount: evalResult.matchedCount,
+            totalCriteria: evalResult.totalCriteria,
+            matchedOptions: evalResult.matchedOptions,
+            matchReasons: evalResult.matchReasons.length > 0 ? evalResult.matchReasons : ['Roommate placement in shared living accommodation'],
           };
 
-          if (finalMatchScore > topScore || (roomMateInfo && !topRoommate)) {
-            topScore = finalMatchScore;
+          if (evalResult.matchScore > topScore || (roomMateInfo && !topRoommate)) {
+            topScore = evalResult.matchScore;
             topRoom = room;
             topBed = vacantBed;
-            topReasons = reasons;
+            topReasons = evalResult.matchReasons;
             topRoommate = roomMateInfo;
           }
         } else {
           // Fresh Empty Room (No occupant yet)
-          let freshScore = 65;
+          let freshScore = 60;
           if (room.roomType === prefs.roomTypePreference) {
-            freshScore += 4;
+            freshScore += 10;
             reasons.push(`Exact room type match: ${room.roomType} selected`);
           }
           reasons.push(`Fresh allocation in clean, well-ventilated room on Floor ${room.floor}`);
@@ -227,10 +294,10 @@ exports.smartAssignSeat = async (req, res) => {
 
     if (prefResult.topRoommate) {
       chosenResult = prefResult;
-      floorSuggestionNote = `Roommate match (${prefResult.topScore.toFixed(0)}%) found on your preferred Floor ${targetFloor}.`;
+      floorSuggestionNote = `Roommate match (${prefResult.topScore}%) found on your preferred Floor ${targetFloor}.`;
     } else if (otherResult.topRoommate) {
       chosenResult = otherResult;
-      floorSuggestionNote = `Roommate match (${otherResult.topScore.toFixed(0)}%) found on Floor ${otherFloor}.`;
+      floorSuggestionNote = `Roommate match (${otherResult.topScore}%) found on Floor ${otherFloor}.`;
     } else if (prefResult.topRoom) {
       chosenResult = prefResult;
       floorSuggestionNote = `Assigned fresh room on your preferred Floor ${targetFloor}.`;
@@ -241,26 +308,55 @@ exports.smartAssignSeat = async (req, res) => {
 
     let bestRoom = chosenResult.topRoom || availableRooms[0];
     let bestBed = chosenResult.topBed || bestRoom.beds.find((b) => !b.isOccupied) || bestRoom.beds[0];
-    let highestScore = chosenResult.topScore >= 0 ? chosenResult.topScore : 0;
-    let matchReasons = chosenResult.topReasons.length > 0 ? chosenResult.topReasons : ['Standard institutional seat allocation based on availability'];
+
     let matchedRoommateData = chosenResult.topRoommate;
+    let highestScore = 0;
+    let matchReasons = [];
 
-    // Determine House Tutor
-    const floorNumber = bestRoom.floor || targetFloor || 1;
-    let houseTutor = '';
-    let houseTutorPhone = '+880 1819 123456';
+    if (!matchedRoommateData) {
+      const otherStudent = await User.findOne({ role: 'student', userId: { $ne: cleanId } });
+      const candidateName = otherStudent?.name || (sName.toLowerCase().includes('tanvir') ? 'Emdadul Rahin' : 'Tanvir Hasan');
+      const candidateDept = otherStudent?.department || sDept;
+      const candidatePrefs = otherStudent?.preferences || {
+        sleepSchedule: 'night-owl',
+        studyHabit: 'moderate-study',
+        cleanliness: 'strictly-clean',
+        religious: 'regular-practicing',
+        departmentPreference: 'same-dept',
+        behavior: 'balanced',
+      };
 
-    if (isMeghna) {
-      houseTutor = floorNumber === 2 ? 'Prof. Farhana Yasmin (Meghna Floor 2 House Tutor)' : 'Dr. Nusrat Jahan (Meghna Floor 1 House Tutor)';
+      const evalMatch = evaluateOptionsMatch(prefs, sDept, candidatePrefs, candidateDept);
+
+      matchedRoommateData = {
+        name: candidateName,
+        department: candidateDept,
+        matchScore: evalMatch.matchScore,
+        matchedCount: evalMatch.matchedCount,
+        totalCriteria: evalMatch.totalCriteria,
+        matchedOptions: evalMatch.matchedOptions,
+        matchReasons: evalMatch.matchReasons,
+      };
+      highestScore = evalMatch.matchScore;
+      matchReasons = evalMatch.matchReasons;
     } else {
-      houseTutor = floorNumber === 2 ? 'Prof. Anisur Rahman (Padma Floor 2 House Tutor)' : 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)';
+      highestScore = matchedRoommateData.matchScore;
+      matchReasons = matchedRoommateData.matchReasons;
     }
 
-    const roommatePayload = matchedRoommateData ? {
-      ...matchedRoommateData,
-      matchScore: Number(highestScore.toFixed(1)),
+    const roommatePayload = {
+      name: matchedRoommateData.name,
+      department: matchedRoommateData.department || sDept,
+      matchScore: matchedRoommateData.matchScore,
+      matchedCount: matchedRoommateData.matchedCount || matchedRoommateData.matchedOptions?.length || 0,
+      totalCriteria: matchedRoommateData.totalCriteria || 6,
+      matchedOptions: matchedRoommateData.matchedOptions || [],
       matchReasons,
-    } : null;
+    };
+
+    const floorNumber = Number(bestRoom.floor) || targetFloor || 1;
+    const houseTutor = bestRoom.assignedHouseTutor || (floorNumber === 2 ? 'Prof. Anisur Rahman (Padma Floor 2 House Tutor)' : 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)');
+    const houseTutorPhone = floorNumber === 2 ? '+880 1819 654321' : '+880 1819 123456';
 
     // Save Recommendation into Application for Hostel Super (Provost) Approval (DO NOT auto-occupy room)
     const randomRef = `#IUBAT-APP-${Math.floor(1000 + Math.random() * 9000)}`;

@@ -23,22 +23,25 @@ export default function PaymentReceiptModal({
   const bankTranId = paymentData.bankTranId || 'BANK-781923';
   const valId = paymentData.valId || 'VAL-891234';
   const paidDate = paymentData.paidAt ? new Date(paymentData.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  const amountBDT = paymentData.amountBDT || 2200;
+  const amountBDT = Number(paymentData.amountBDT || paymentData.amount || paymentData.payAbleAmount || 0) || 2200;
   const feeType = paymentData.feeType || 'Seat Rent';
   const month = paymentData.month || 'March 2026';
-  const paymentMethod = paymentData.paymentMethod || 'SSLCommerz (bKash)';
+  const paymentMethod = paymentData.paymentMethod || 'SSLCommerz (Gateway)';
   
-  const studentName = paymentData.studentName || studentUser?.name || 'Tanvir Hasan';
+  const studentName = paymentData.studentName || paymentData.tenantName || studentUser?.name || 'Resident Student';
   const studentId = paymentData.studentId || studentUser?.userId || studentUser?.id || '221004128';
   const department = paymentData.department || studentUser?.department || 'Department of Computer Science & Engineering (CSE)';
   const hall = paymentData.hall || studentUser?.hall || 'Padma Residential Hall (Male)';
   const room = paymentData.room || studentUser?.room || 'Room 101';
   const seatNo = paymentData.seatNo || studentUser?.seatNo || 'Bed A';
 
+  const isPaid = (paymentData.status || paymentData.paymentStatus || '').toLowerCase() === 'paid';
+  const isRefunded = (paymentData.status || paymentData.paymentStatus || '').toLowerCase() === 'refunded';
+
   const breakdown = paymentData.breakdown && paymentData.breakdown.length > 0 ? paymentData.breakdown : [
-    { label: `${feeType} - Regular Billing (${month})`, amount: amountBDT - 400 },
-    { label: 'High-Speed Wi-Fi & Generator Facility', amount: 250 },
-    { label: 'Hall Common Service & Maintenance', amount: 150 },
+    { label: `${feeType} - Regular Billing (${month})`, amount: Math.max(0, amountBDT - 400) },
+    { label: 'High-Speed Wi-Fi & Generator Facility', amount: Math.min(250, amountBDT > 400 ? 250 : 0) },
+    { label: 'Hall Common Service & Maintenance', amount: Math.min(150, amountBDT > 400 ? 150 : amountBDT) },
   ];
 
   // Number to Words Converter helper (BDT)
@@ -63,16 +66,18 @@ export default function PaymentReceiptModal({
 
   return (
     <div
+      id="printable-receipt-modal"
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm print:p-0 print:bg-white animate-fade-in"
     >
       {/* Container Box - Compact size and max height so Cross Bar is ALWAYS pinned and visible */}
       <div
+        id="printable-receipt-card"
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-xl max-h-[85vh] flex flex-col bg-white text-slate-900 rounded-2xl shadow-2xl overflow-hidden print:shadow-none print:w-full print:max-w-none print:max-h-none print:rounded-none border border-slate-200"
       >
         {/* Pinned Top Controls Bar (NEVER scrolls away) */}
-        <div className="shrink-0 px-4 py-2.5 bg-slate-900 text-white flex items-center justify-between print:hidden z-10 border-b border-slate-800">
+        <div className="shrink-0 px-4 py-2.5 bg-slate-900 text-white flex items-center justify-between print:hidden no-print z-10 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <span className="p-1 rounded-lg bg-emerald-500/20 text-emerald-400">
               <FileCheck2 size={16} />
@@ -160,8 +165,12 @@ export default function PaymentReceiptModal({
               </div>
               <div>
                 <span className="text-slate-500 text-[11px]">Clearance Status:</span>{' '}
-                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase">
-                  ✓ 100% Paid & Verified
+                <span className={`px-2 py-0.5 rounded font-extrabold text-[10px] uppercase ${
+                  isPaid ? 'bg-emerald-100 text-emerald-800' :
+                  isRefunded ? 'bg-purple-100 text-purple-800' :
+                  'bg-amber-100 text-amber-800'
+                }`}>
+                  {isPaid ? '✓ 100% Paid & Verified' : isRefunded ? 'Refunded' : 'Pending Clearance'}
                 </span>
               </div>
             </div>
@@ -256,10 +265,14 @@ export default function PaymentReceiptModal({
 
             {/* Center Official Stamp */}
             <div className="flex flex-col items-center">
-              <div className="w-16 h-16 rounded-full border-2 border-dashed border-emerald-700 flex flex-col items-center justify-center text-[8px] font-black text-emerald-800 uppercase tracking-tighter transform -rotate-12 bg-emerald-50/40 shadow-inner">
+              <div className={`w-16 h-16 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-[8px] font-black uppercase tracking-tighter transform -rotate-12 shadow-inner ${
+                isPaid ? 'border-emerald-700 text-emerald-800 bg-emerald-50/40' :
+                isRefunded ? 'border-purple-700 text-purple-800 bg-purple-50/40' :
+                'border-slate-700 text-slate-800 bg-slate-50/40'
+              }`}>
                 <span>IUBAT</span>
                 <span>ACCOUNTS</span>
-                <span>PAID</span>
+                <span>{isPaid ? 'PAID' : isRefunded ? 'REFUND' : 'INVOICE'}</span>
               </div>
               <span className="text-[9px] text-slate-500 font-bold mt-1">Institutional Seal</span>
             </div>

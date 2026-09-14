@@ -36,7 +36,7 @@ exports.getBookings = async (req, res) => {
 
     if (studentId) query.studentId = studentId;
     if (hall && hall !== 'all') {
-      query.hall = { $regex: hall.includes('Meghna') ? 'Meghna' : 'Padma', $options: 'i' };
+      query.hall = { $regex: 'Padma', $options: 'i' };
     }
     if (status && status !== 'all') query.status = status;
     if (date) query.date = date;
@@ -320,6 +320,63 @@ exports.getMessStats = async (req, res) => {
         approvedMeals: approvedCount,
         pendingApprovals: pendingCount,
       },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Verify QR token and confirm handover
+// @route   POST /api/mess/verify-qr
+exports.verifyMealQr = async (req, res) => {
+  try {
+    const { tokenCode, bookingId, studentId, staffName } = req.body;
+    const query = bookingId || tokenCode;
+    if (!query && !studentId) {
+      return res.status(400).json({ success: false, message: 'Missing token or booking ID to verify.' });
+    }
+
+    let booking = null;
+    if (query) {
+      booking = await MealBooking.findOne({
+        $or: [
+          { bookingId: query },
+          { _id: query.match(/^[0-9a-fA-F]{24}$/) ? query : null },
+        ],
+      });
+    }
+
+    if (!booking && studentId) {
+      booking = await MealBooking.findOne({ studentId, foodCollected: { $ne: true } }).sort({ createdAt: -1 });
+    }
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: `No meal token record found matching '${query || studentId}'.` });
+    }
+
+    // Check if already collected
+    if (booking.foodCollected || booking.status === 'Approved & Served') {
+      return res.status(200).json({
+        success: false,
+        alreadyCollected: true,
+        message: `⚠️ ALREADY COLLECTED! Meal #${booking.bookingId} (${booking.mealType}) was already handed over to ${booking.studentName} at ${booking.collectedAt ? new Date(booking.collectedAt).toLocaleTimeString() : 'earlier today'}.`,
+        data: booking,
+      });
+    }
+
+    // Mark food handed over
+    booking.status = 'Approved & Served';
+    booking.foodCollected = true;
+    booking.collectedAt = new Date();
+    booking.collectedByStaff = staffName || 'Dining Staff In-Charge';
+    booking.approvedBy = staffName || 'Dining Staff In-Charge';
+    booking.approvedAt = new Date();
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: `✅ Meal Token Verified & Handed Over! ${booking.mealType} meal successfully delivered to ${booking.studentName} (ID: ${booking.studentId}).`,
+      data: booking,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

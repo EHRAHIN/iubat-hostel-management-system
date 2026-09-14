@@ -117,13 +117,13 @@ export default function AiMatcherSpotlight() {
         <div className="text-center max-w-3xl mx-auto mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold mb-3">
             <Sparkles size={14} className="text-pink-400" />
-            <span>AI Feature Spotlight</span>
+            <span>Roommate Compatibility</span>
           </div>
           <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight font-['Outfit'] mb-3">
-            Smart Searching Roommate <span className="gradient-text">& Seat Matcher</span>
+            Roommate Compatibility <span className="gradient-text">Finder</span>
           </h2>
           <p className="text-sm md:text-base text-slate-300">
-            Say goodbye to random seat allotments and roommate conflicts. Our system uses multidimensional vector analysis via the Smart Searching Roommate Engine to match students based on lifestyle, study ethics, and sleep habits.
+            Say goodbye to random room assignments and roommate conflicts. Students are matched based on lifestyle, study habits, and sleep schedules for a comfortable hostel experience.
           </p>
         </div>
 
@@ -135,8 +135,8 @@ export default function AiMatcherSpotlight() {
                 <Brain size={22} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Interactive Smart Searching Roommate Simulator</h3>
-                <p className="text-xs text-slate-400">Adjust traits for two applicants to test the Smart Searching Roommate compatibility engine</p>
+                <h3 className="text-base font-bold text-white">Roommate Compatibility Calculator</h3>
+                <p className="text-xs text-slate-400">Compare preferences between two students to check how well they can live together</p>
               </div>
             </div>
 
@@ -146,7 +146,7 @@ export default function AiMatcherSpotlight() {
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg transition-all disabled:opacity-50"
             >
               <RefreshCw size={14} className={isCalculating ? 'spin' : ''} />
-              <span>{isCalculating ? 'Analyzing Vectors...' : 'Calculate AI Match'}</span>
+              <span>{isCalculating ? 'Checking Match...' : 'Check Compatibility'}</span>
             </button>
           </div>
 
@@ -311,12 +311,12 @@ export default function AiMatcherSpotlight() {
               </div>
             </div>
 
-            {/* Real-time Smart Searching Roommate Result Card */}
+            {/* Real-time Roommate Compatibility Result Card */}
             <div className={`lg:col-span-4 p-5 rounded-2xl ${result.bgColor} border ${result.borderColor} space-y-4 transition-all duration-300`}>
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-200">
                   <Cpu size={14} className="text-purple-400" />
-                  <span>Smart Searching Roommate Verdict</span>
+                  <span>Compatibility Result</span>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${result.color} ${result.borderColor}`}>
                   {result.tier}
@@ -329,7 +329,7 @@ export default function AiMatcherSpotlight() {
                   {result.score}%
                 </div>
                 <div className="text-[11px] font-bold text-slate-300 uppercase tracking-widest mt-1">
-                  Compatibility Index
+                  Match Score
                 </div>
               </div>
 
@@ -337,7 +337,7 @@ export default function AiMatcherSpotlight() {
               <div className="p-3 rounded-xl bg-slate-950/70 border border-white/10 text-xs">
                 <div className="flex items-center gap-1 text-slate-300 font-bold text-[11px] mb-1">
                   <Sparkles size={12} className="text-purple-400" />
-                  <span>AI Vector Rationale:</span>
+                  <span>Why They Match:</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   {result.reasoning}

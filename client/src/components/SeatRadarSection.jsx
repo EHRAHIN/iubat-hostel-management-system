@@ -1,29 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building, 
   CheckCircle2, 
-  ArrowRight, 
   Bed, 
   Users, 
   Layers, 
   ShieldCheck, 
   UserCheck,
-  Sparkles,
   Filter,
-  Eye
+  Eye,
+  RefreshCw
 } from 'lucide-react';
+import { api } from '../services/api';
 
-export default function SeatRadarSection({ onApplyForHall }) {
-  const [selectedBlock, setSelectedBlock] = useState('padma');
+export default function SeatRadarSection({ rooms: initialRooms = [] }) {
   const [selectedFloor, setSelectedFloor] = useState('1');
   const [activeRoom, setActiveRoom] = useState(null);
   const [filterVacantOnly, setFilterVacantOnly] = useState(false);
+  const [liveRooms, setLiveRooms] = useState(initialRooms);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Building Configurations (Exactly 2 Halls: 1 Male, 1 Female; 2 Floors each)
+  // Sync with incoming rooms prop
+  useEffect(() => {
+    if (initialRooms && initialRooms.length > 0) {
+      setLiveRooms(initialRooms);
+    }
+  }, [initialRooms]);
+
+  // Fetch live rooms from MongoDB on mount to ensure real-time seat availability
+  const fetchLiveRooms = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.getRooms();
+      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+        setLiveRooms(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching live rooms in SeatRadarSection:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveRooms();
+  }, []);
+
+  // Building Configurations (Padma Residential Hall • 2 Floors)
   const hallConfigs = {
     padma: {
-      name: 'Padma Residential Hall (Male)',
-      gender: 'Male Students',
+      name: 'Padma Residential Hall',
+      gender: 'Campus Residence',
       totalFloors: 2,
       floors: ['1', '2'],
       tutors: {
@@ -33,15 +60,11 @@ export default function SeatRadarSection({ onApplyForHall }) {
     },
   };
 
-  const blocks = [
-    { id: 'padma', name: 'Padma Residential Hall (Campus Male Residence • 2 Floors)' },
-  ];
+  const currentHall = hallConfigs.padma;
 
-  const currentHall = hallConfigs[selectedBlock] || hallConfigs.padma;
-
-  // Active Floor Rooms & Beds Matrix (Dynamic: Only registered students are occupied, rest are 100% available)
+  // Fallback Floor Rooms & Beds Matrix (accurately reflects current bookings if offline)
   const generateFloorRooms = (block, floor) => {
-    const isPadmaF1 = block === 'padma' && floor === '1';
+    const isPadmaF1 = String(floor) === '1';
 
     return [
       { 
@@ -59,9 +82,12 @@ export default function SeatRadarSection({ onApplyForHall }) {
         no: `${floor}02`, 
         type: 'Double Shared Room', 
         totalBeds: 2, 
-        occupiedBeds: 0, 
-        status: '2 Vacant Beds', 
-        beds: [
+        occupiedBeds: isPadmaF1 ? 1 : 0, 
+        status: isPadmaF1 ? '1 Vacant Bed' : '2 Vacant Beds', 
+        beds: isPadmaF1 ? [
+          { label: 'Bed A', isOccupied: true, student: 'parvez (CSE)' },
+          { label: 'Bed B', isOccupied: false, student: 'Available for Allocation' }
+        ] : [
           { label: 'Bed A', isOccupied: false, student: 'Available for Allocation' },
           { label: 'Bed B', isOccupied: false, student: 'Available for Allocation' }
         ]
@@ -82,7 +108,7 @@ export default function SeatRadarSection({ onApplyForHall }) {
         type: 'Double Shared Room', 
         totalBeds: 2, 
         occupiedBeds: isPadmaF1 ? 2 : 0, 
-        status: isPadmaF1 ? 'Occupied' : '2 Vacant Beds', 
+        status: isPadmaF1 ? 'Fully Occupied' : '2 Vacant Beds', 
         beds: isPadmaF1 ? [
           { label: 'Bed A', isOccupied: true, student: 'Resident Student (EEE)' },
           { label: 'Bed B', isOccupied: true, student: 'Tanvir Hasan (CSE)' }
@@ -139,29 +165,45 @@ export default function SeatRadarSection({ onApplyForHall }) {
     ];
   };
 
-  const floorRooms = generateFloorRooms(selectedBlock, selectedFloor);
+  const currentHallRooms = liveRooms && liveRooms.length > 0
+    ? liveRooms.filter(
+        (r) =>
+          !((r.hallName || r.hallId || '').toLowerCase().includes('meghna')) &&
+          String(r.floor) === String(selectedFloor)
+      )
+    : [];
+
+  const floorRooms = currentHallRooms.length > 0
+    ? currentHallRooms.map((r) => {
+        const occBeds = r.beds ? r.beds.filter((b) => b.isOccupied).length : (r.occupiedCount || 0);
+        const cap = r.capacity || (r.beds ? r.beds.length : 2);
+        const vacBeds = Math.max(0, cap - occBeds);
+        return {
+          id: r._id,
+          no: r.roomNumber,
+          type: r.roomType || (cap === 1 ? 'Single Deluxe Room' : cap === 4 ? 'Quad Shared Room' : 'Double Shared Room'),
+          totalBeds: cap,
+          occupiedBeds: occBeds,
+          status: vacBeds === 0 ? 'Fully Occupied' : `${vacBeds} Vacant Bed${vacBeds > 1 ? 's' : ''}`,
+          beds: r.beds && r.beds.length > 0
+            ? r.beds.map((b, idx) => ({
+                label: b.bedLabel || b.label || `Bed ${String.fromCharCode(65 + idx)}`,
+                isOccupied: Boolean(b.isOccupied),
+                student: b.isOccupied ? (b.studentName ? `${b.studentName}${b.studentDept ? ` (${b.studentDept})` : ''}` : 'Resident Student') : 'Available for Allocation',
+                studentDept: b.studentDept || '',
+              }))
+            : Array.from({ length: cap }, (_, i) => ({
+                label: `Bed ${String.fromCharCode(65 + i)}`,
+                isOccupied: i < occBeds,
+                student: i < occBeds ? 'Resident Student' : 'Available for Allocation',
+              })),
+        };
+      })
+    : generateFloorRooms('padma', selectedFloor);
 
   const displayedRooms = filterVacantOnly
     ? floorRooms.filter((rm) => rm.occupiedBeds < rm.totalBeds)
     : floorRooms;
-
-  const handleSelectBlock = (blockId) => {
-    setSelectedBlock(blockId);
-    setSelectedFloor('1');
-    setActiveRoom(null);
-  };
-
-  const handleApplyDirect = (room, bedLabel = '') => {
-    if (onApplyForHall) {
-      onApplyForHall(
-        currentHall.name,
-        room.type,
-        room.no,
-        bedLabel || (room.beds.find(b => !b.isOccupied)?.label || 'Bed A'),
-        `Floor ${selectedFloor}`
-      );
-    }
-  };
 
   return (
     <section id="vacancy" className="py-12 md:py-16 bg-slate-50 dark:bg-[#060911] border-t border-slate-200 dark:border-slate-800 transition-colors">
@@ -174,46 +216,35 @@ export default function SeatRadarSection({ onApplyForHall }) {
               Live Seat Vacancy & Room Explorer
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Interactive Room & Seat Availability Matrix
+              Room & Bed Availability
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Select any vacant seat or bed below to directly submit your allocation application to the Provost Office.
+              Real-time room occupancy and available bed status across all residential floors.
             </p>
           </div>
 
-          {/* Block Selector */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 overflow-x-auto max-w-full shadow-xs">
-            {blocks.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => handleSelectBlock(b.id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                  selectedBlock === b.id
-                    ? 'bg-emerald-700 dark:bg-emerald-600 text-white shadow-md'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                {b.name}
-              </button>
-            ))}
+          {/* Active Hall Indicator */}
+          <div className="ios-glass-pill flex items-center gap-2 px-4.5 py-2 rounded-full text-emerald-800 dark:text-emerald-300 text-xs font-bold whitespace-nowrap">
+            <Building size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>Padma Residential Hall (Floor 1 & 2)</span>
           </div>
         </div>
 
         {/* Interactive Floor Matrix Card */}
-        <div className="p-6 md:p-8 rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200/90 dark:border-slate-800/90 shadow-xl">
+        <div className="ios-glass-card p-6 md:p-8 rounded-3xl">
           
           {/* Header of Floor Explorer */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 mb-6 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 mb-6 border-b border-slate-200/50 dark:border-slate-800/50">
             <div>
               <div className="flex items-center gap-2.5">
                 <span className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                   {currentHall.name}
                 </span>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className="ios-glass-pill text-[10px] font-bold px-3 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300">
                   {currentHall.gender}
                 </span>
               </div>
-              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1.5">
+              <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium mt-1.5 flex items-center gap-1.5">
                 <UserCheck size={14} />
                 <span>Assigned House Tutor: {currentHall.tutors[selectedFloor] || 'Designated Floor House Tutor'}</span>
               </p>
@@ -221,8 +252,8 @@ export default function SeatRadarSection({ onApplyForHall }) {
 
             {/* Controls: Floor selector + Filter vacant seats */}
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1 bg-slate-50 dark:bg-[#060911] p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                <span className="text-xs text-slate-500 px-2 font-medium">Floor:</span>
+              <div className="ios-glass-pill flex items-center gap-1 p-1 rounded-full">
+                <span className="text-xs text-slate-500 px-2.5 font-medium">Floor:</span>
                 {currentHall.floors.map((fl) => (
                   <button
                     key={fl}
@@ -230,9 +261,9 @@ export default function SeatRadarSection({ onApplyForHall }) {
                       setSelectedFloor(fl);
                       setActiveRoom(null);
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    className={`ios-tap-active px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                       selectedFloor === fl
-                        ? 'bg-emerald-700 dark:bg-emerald-600 text-white shadow-sm'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-700/20'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
@@ -243,10 +274,10 @@ export default function SeatRadarSection({ onApplyForHall }) {
 
               <button
                 onClick={() => setFilterVacantOnly(!filterVacantOnly)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all ${
+                className={`ios-glass-pill ios-tap-active px-3.5 py-2 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   filterVacantOnly
-                    ? 'bg-emerald-700 text-white border-emerald-600 shadow-sm'
-                    : 'bg-slate-50 dark:bg-[#060911] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-700/20 font-bold'
+                    : 'text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <Filter size={13} />
@@ -266,13 +297,13 @@ export default function SeatRadarSection({ onApplyForHall }) {
                 <div
                   key={rm.no}
                   onClick={() => setActiveRoom(rm)}
-                  className={`p-4 rounded-2xl border text-left cursor-pointer transition-all ${
+                  className={`ios-tap-active p-4.5 rounded-2xl border text-left cursor-pointer transition-all ${
                     isSelected
-                      ? 'ring-2 ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-500 shadow-md'
+                      ? 'ring-2 ring-emerald-500 bg-emerald-500/10 border-emerald-500 shadow-lg'
                       : isFull
-                      ? 'bg-slate-50/70 dark:bg-[#060911]/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-300'
-                      : 'bg-white dark:bg-[#0c1220] border-emerald-200 dark:border-emerald-900/60 shadow-xs hover:border-emerald-500'
-                  }`}
+                      ? 'bg-white/40 dark:bg-black/20 border-slate-200/60 dark:border-white/5 opacity-80'
+                      : 'bg-white/60 dark:bg-white/5 border-emerald-500/30 hover:border-emerald-500 hover:shadow-md'
+                  } backdrop-blur-md`}
                 >
                   {/* Room Header */}
                   <div className="flex items-center justify-between mb-2">
@@ -302,42 +333,30 @@ export default function SeatRadarSection({ onApplyForHall }) {
                         <div className="flex items-center gap-1.5">
                           <span className={`w-2 h-2 rounded-full ${b.isOccupied ? 'bg-slate-400' : 'bg-emerald-500'}`}></span>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">{b.label}:</span>
-                          <span className={`truncate max-w-[110px] ${b.isOccupied ? 'text-slate-500' : 'text-emerald-700 dark:text-emerald-400 font-medium'}`}>
+                          <span className={`truncate max-w-[130px] ${b.isOccupied ? 'text-slate-500' : 'text-emerald-700 dark:text-emerald-400 font-medium'}`}>
                             {b.isOccupied ? 'Occupied' : 'Vacant'}
                           </span>
                         </div>
 
-                        {/* Apply Trigger for Vacant Bed */}
-                        {!b.isOccupied && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleApplyDirect(rm, b.label);
-                            }}
-                            className="px-2 py-0.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-[10px] shadow-xs transition-colors"
-                          >
-                            Apply
-                          </button>
-                        )}
+                        {/* Availability Status Badge (No Apply Button) */}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          b.isOccupied
+                            ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400'
+                            : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60'
+                        }`}>
+                          {b.isOccupied ? 'Booked' : 'Available'}
+                        </span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Full Room Apply Button if at least 1 seat is vacant */}
-                  {hasVacant && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApplyDirect(rm);
-                      }}
-                      className="mt-3.5 w-full py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
-                    >
-                      <Sparkles size={12} />
-                      <span>Select for Allocation</span>
-                    </button>
-                  )}
+                  {/* Room Allocation Status Summary Bar */}
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px]">
+                    <span className="text-slate-400">Room Status:</span>
+                    <span className={`font-semibold ${hasVacant ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500'}`}>
+                      {hasVacant ? `${rm.totalBeds - rm.occupiedBeds} Bed(s) Available` : 'Fully Occupied'}
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -367,15 +386,12 @@ export default function SeatRadarSection({ onApplyForHall }) {
               </div>
 
               {activeRoom.occupiedBeds < activeRoom.totalBeds ? (
-                <button
-                  onClick={() => handleApplyDirect(activeRoom)}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs shadow-md shrink-0 flex items-center gap-1.5 transition-colors"
-                >
-                  <span>Apply for Available Seat in Room {activeRoom.no}</span>
-                  <ArrowRight size={14} />
-                </button>
+                <div className="px-4 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-semibold text-xs shrink-0 flex items-center gap-2">
+                  <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>{activeRoom.totalBeds - activeRoom.occupiedBeds} Bed(s) Available</span>
+                </div>
               ) : (
-                <span className="text-xs font-semibold text-slate-500 px-3 py-1.5 rounded-lg bg-slate-200/60 dark:bg-slate-800">
+                <span className="text-xs font-semibold text-slate-500 px-3.5 py-2 rounded-xl bg-slate-200/60 dark:bg-slate-800">
                   Fully Allocated (No Vacancies)
                 </span>
               )}
@@ -383,18 +399,18 @@ export default function SeatRadarSection({ onApplyForHall }) {
           )}
 
           {/* Matrix Legend */}
-          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                <span>Available Bed (Instant Application Open)</span>
+                <span>Available Bed (Vacant)</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-                <span>Occupied / Verified Resident</span>
+                <span>Booked / Allocated Resident</span>
               </div>
             </div>
-            <span>All applications undergo automated CGPA and merit quota evaluation</span>
+            <span>Live verified occupancy records from Padma Residential Hall Administration</span>
           </div>
 
         </div>

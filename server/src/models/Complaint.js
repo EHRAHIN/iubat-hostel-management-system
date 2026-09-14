@@ -32,13 +32,19 @@ const complaintSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['Electrical', 'Water Pump & Plumbing', 'Cleaning & Sanitization', 'Furniture & Hardware', 'Wi-Fi & LAN', 'Internet & Network', 'Other'],
+      enum: [
+        'Electrical', 'Electricity',
+        'Network', 'Wi-Fi & LAN', 'Internet & Network', 'Internet / Wi-Fi & LAN',
+        'Plumbing', 'Water Pump & Plumbing', 'Water & Plumbing', 'Plumbing & Water',
+        'Furniture', 'Furniture & Hardware', 'Furniture & Locks',
+        'Cleaning & Sanitization', 'Cleaning', 'Carpentry', 'General', 'Other'
+      ],
       required: true,
       default: 'Electrical',
     },
     priority: {
       type: String,
-      enum: ['Low', 'Normal', 'Medium', 'High', 'Urgent'],
+      enum: ['Low', 'Normal', 'Medium', 'High', 'Urgent', 'Critical'],
       default: 'Normal',
     },
     title: {

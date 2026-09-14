@@ -35,10 +35,12 @@ export default function StudentMealReceiptModal({
 
   return (
     <div
+      id="printable-receipt-modal"
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in"
     >
       <div
+        id="printable-receipt-card"
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-xl max-h-[85vh] flex flex-col bg-white dark:bg-[#0d121f] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden"
       >
