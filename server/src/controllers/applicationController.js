@@ -32,8 +32,8 @@ exports.submitApplication = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Full Name, Student ID, and CGPA are required.' });
     }
 
-    // Generate unique reference ID (e.g., #IUBAT-APP-4829)
-    const randomRef = `#IUBAT-APP-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Generate unique reference ID (e.g., #HSTL-APP-4829)
+    const randomRef = `#HSTL-APP-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const application = await Application.create({
       applicationRef: randomRef,

@@ -80,9 +80,9 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
   const [isPosModalOpen, setIsPosModalOpen] = useState(false);
 
   useEffect(() => {
-    if (workspaceMode === 'maintenance' && !['maintenance', 'handover', 'pos', 'token'].includes(activeTab)) {
+    if (workspaceMode === 'maintenance' && !['maintenance', 'handover', 'pos', 'token', 'notices'].includes(activeTab)) {
       setActiveTab('maintenance');
-    } else if (workspaceMode === 'dining' && !['meals-queue', 'student-leaves', 'bazar', 'bazar-history', 'pos', 'token'].includes(activeTab)) {
+    } else if (workspaceMode === 'dining' && !['meals-queue', 'student-leaves', 'bazar', 'bazar-history', 'pos', 'token', 'notices'].includes(activeTab)) {
       setActiveTab('meals-queue');
     }
   }, [workspaceMode, activeTab]);
@@ -92,6 +92,13 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
   // -------------------------------------------------------------
   const [issueFilter, setIssueFilter] = useState('all');
   const [newIssueModalOpen, setNewIssueModalOpen] = useState(false);
+  const [progressModalOpen, setProgressModalOpen] = useState(false);
+  const [selectedTicketForProgress, setSelectedTicketForProgress] = useState(null);
+  const [progressPercentInput, setProgressPercentInput] = useState(25);
+  const [staffNotesInput, setStaffNotesInput] = useState('');
+  const [etaInput, setEtaInput] = useState('');
+  const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [mealSessionFilter, setMealSessionFilter] = useState('all'); // 'all' | 'breakfast' | 'lunch' | 'dinner'
   const [newIssueForm, setNewIssueForm] = useState({
     title: '',
     category: 'Electrical',
@@ -256,6 +263,59 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
       onShowToast(res.message || `Work order #${ticketId} updated to: ${nextStatus}.`, 'success');
     } catch (err) {
       onShowToast(err.message || 'Failed to update ticket status.', 'error');
+    }
+  };
+
+  const handleOpenProgressModal = (ticket) => {
+    setSelectedTicketForProgress(ticket);
+    setProgressPercentInput(ticket.progressPercent || 25);
+    setStaffNotesInput(ticket.staffNotes || '');
+    setEtaInput(ticket.estimatedCompletion || 'Today within 2 hours');
+    setProgressModalOpen(true);
+  };
+
+  const handleSubmitProgress = async (e) => {
+    e?.preventDefault?.();
+    if (!selectedTicketForProgress) return;
+    const ticketId = selectedTicketForProgress.ticketId || selectedTicketForProgress.id || selectedTicketForProgress._id;
+
+    setIsUpdatingProgress(true);
+    try {
+      const nextStatus = progressPercentInput >= 100 
+        ? 'Resolved and Verified' 
+        : progressPercentInput > 0 
+        ? 'In Progress' 
+        : 'Assigned to Staff';
+
+      const res = await api.updateComplaintProgress(ticketId, {
+        progressPercent: progressPercentInput,
+        staffNotes: staffNotesInput,
+        estimatedCompletion: etaInput,
+        status: nextStatus,
+      });
+
+      setWorkOrders((prev) =>
+        prev.map((t) =>
+          (t.ticketId === ticketId || t._id === ticketId || t.id === ticketId)
+            ? {
+                ...t,
+                progressPercent: progressPercentInput,
+                staffNotes: staffNotesInput,
+                estimatedCompletion: etaInput,
+                status: nextStatus,
+              }
+            : t
+        )
+      );
+
+      onShowToast(res.message || `Work order #${ticketId} progress updated to ${progressPercentInput}% (${nextStatus})!`, 'success');
+      setProgressModalOpen(false);
+      setSelectedTicketForProgress(null);
+    } catch (err) {
+      console.error('Failed to update work order progress:', err);
+      onShowToast(err.message || 'Failed to update work progress.', 'error');
+    } finally {
+      setIsUpdatingProgress(false);
     }
   };
 
@@ -471,7 +531,7 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
     }
 
     // 2. GATE PASS QR
-    if (payload.type === 'GATE_PASS' || payload.qrCode || trimmed.startsWith('IUBAT-QR-') || trimmed.startsWith('LP-')) {
+    if (payload.type === 'GATE_PASS' || payload.qrCode || trimmed.startsWith('HSTL-QR-') || trimmed.startsWith('LP-')) {
       const passId = payload.passId || trimmed;
       const qrCode = payload.qrCode || trimmed;
 
@@ -666,7 +726,7 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
 
           <button
             onClick={onLogout}
-            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
+            className="ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 hover:border-rose-600 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white dark:border-rose-900/50 dark:hover:border-rose-600 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:shadow-rose-600/20"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -1094,6 +1154,39 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
                           {ticket.description}
                         </div>
 
+                        {/* Live Work Progress Bar Display */}
+                        {(ticket.status?.includes('In Progress') || (ticket.progressPercent && ticket.progressPercent > 0) || ticket.status?.includes('Resolved')) && (
+                          <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px] font-bold">
+                              <span className="text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${ticket.progressPercent >= 100 ? 'bg-emerald-500' : 'bg-blue-500 animate-pulse'} inline-block`} />
+                                {ticket.progressPercent >= 100 ? 'Work Completed (100%)' : 'Live Work Progress'}
+                              </span>
+                              <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{ticket.progressPercent || 0}%</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-blue-200/50 dark:bg-blue-900/60 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  ticket.progressPercent >= 100
+                                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                    : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                }`}
+                                style={{ width: `${Math.min(100, Math.max(0, ticket.progressPercent || 0))}%` }}
+                              />
+                            </div>
+                            {ticket.staffNotes && (
+                              <p className="text-[10px] text-blue-800 dark:text-blue-200 italic mt-1 font-medium">
+                                Crew Note: "{ticket.staffNotes}"
+                              </p>
+                            )}
+                            {ticket.estimatedCompletion && (
+                              <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                                Est. Completion: <strong>{ticket.estimatedCompletion}</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-[11px] space-y-1 text-slate-600 dark:text-slate-400">
                           <div><strong>Reported By:</strong> {ticket.studentName || ticket.reportedBy} ({ticket.studentId || 'Resident'})</div>
                           <div><strong>Tutor Verification:</strong> {ticket.tutorStatus || 'Verified'}</div>
@@ -1101,24 +1194,25 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
                         <span className="font-mono text-slate-400 text-[11px]">Ticket #{ticketId}</span>
-                        <div className="flex items-center gap-2">
-                          {!isResolved && !ticket.status?.includes('In Progress') && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {!isResolved && (
                             <button
-                              onClick={() => handleUpdateTicketStatus(ticketId, 'In Progress')}
-                              className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 font-semibold text-xs hover:bg-amber-100 transition-colors"
+                              onClick={() => handleOpenProgressModal(ticket)}
+                              className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all"
                             >
-                              Start Repair
+                              <Activity size={13} />
+                              <span>{ticket.progressPercent ? 'Update Progress' : 'Start Work & Progress'}</span>
                             </button>
                           )}
                           {!isResolved && (
                             <button
                               onClick={() => handleUpdateTicketStatus(ticketId, 'Resolved and Verified')}
-                              className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs flex items-center gap-1 shadow-sm transition-colors"
+                              className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs flex items-center gap-1 shadow-sm transition-colors"
                             >
                               <Check size={13} />
-                              <span>Confirm Work Complete & Fixed</span>
+                              <span>100% Fixed</span>
                             </button>
                           )}
                           {isResolved && (
@@ -1159,6 +1253,123 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
               {pendingMealCount} Pending Applications
             </span>
+          </div>
+
+          {/* MEAL BREAKDOWN STAT CARDS BY SESSION (Total, Breakfast, Lunch, Dinner) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* 1. Total Meals Applied */}
+            <div 
+              onClick={() => setMealSessionFilter('all')}
+              className={`p-4 rounded-3xl border transition-all cursor-pointer select-none ${
+                mealSessionFilter === 'all'
+                  ? 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-700/20 border-transparent ring-2 ring-emerald-400/50'
+                  : 'bg-white dark:bg-[#0d121f] border-slate-200 dark:border-slate-800 hover:border-emerald-500/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${mealSessionFilter === 'all' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                  TOTAL MEAL REQUESTS
+                </span>
+                <span className={`p-2 rounded-xl text-xs ${mealSessionFilter === 'all' ? 'bg-white/20 text-white' : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600'}`}>
+                  🍽️
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black font-mono tracking-tight">{mealBookings.length}</span>
+                <span className={`text-xs ${mealSessionFilter === 'all' ? 'text-emerald-200' : 'text-slate-400'}`}>Total Bookings</span>
+              </div>
+              <div className={`mt-2 text-[10px] flex items-center justify-between pt-2 border-t ${mealSessionFilter === 'all' ? 'border-white/20 text-emerald-100' : 'border-slate-100 dark:border-slate-800 text-slate-500'}`}>
+                <span>Collected: {mealBookings.filter(b => b.foodCollected || b.status === 'Approved & Served').length}</span>
+                <span>Pending: {mealBookings.filter(b => !b.foodCollected && b.status !== 'Approved & Served').length}</span>
+              </div>
+            </div>
+
+            {/* 2. Breakfast */}
+            <div 
+              onClick={() => setMealSessionFilter('breakfast')}
+              className={`p-4 rounded-3xl border transition-all cursor-pointer select-none ${
+                mealSessionFilter === 'breakfast'
+                  ? 'bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-600/20 border-transparent ring-2 ring-amber-400/50'
+                  : 'bg-white dark:bg-[#0d121f] border-slate-200 dark:border-slate-800 hover:border-amber-500/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${mealSessionFilter === 'breakfast' ? 'text-amber-100' : 'text-slate-500'}`}>
+                  BREAKFAST SESSION
+                </span>
+                <span className={`p-2 rounded-xl text-xs ${mealSessionFilter === 'breakfast' ? 'bg-white/20 text-white' : 'bg-amber-50 dark:bg-amber-950 text-amber-600'}`}>
+                  🍳
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black font-mono tracking-tight">
+                  {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('breakfast')).length}
+                </span>
+                <span className={`text-xs ${mealSessionFilter === 'breakfast' ? 'text-amber-200' : 'text-slate-400'}`}>07:30 AM - 09:30 AM</span>
+              </div>
+              <div className={`mt-2 text-[10px] flex items-center justify-between pt-2 border-t ${mealSessionFilter === 'breakfast' ? 'border-white/20 text-amber-100' : 'border-slate-100 dark:border-slate-800 text-slate-500'}`}>
+                <span>Collected: {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('breakfast') && (b.foodCollected || b.status === 'Approved & Served')).length}</span>
+                <span>Pending: {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('breakfast') && !b.foodCollected && b.status !== 'Approved & Served').length}</span>
+              </div>
+            </div>
+
+            {/* 3. Lunch */}
+            <div 
+              onClick={() => setMealSessionFilter('lunch')}
+              className={`p-4 rounded-3xl border transition-all cursor-pointer select-none ${
+                mealSessionFilter === 'lunch'
+                  ? 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-lg shadow-teal-600/20 border-transparent ring-2 ring-emerald-400/50'
+                  : 'bg-white dark:bg-[#0d121f] border-slate-200 dark:border-slate-800 hover:border-emerald-500/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${mealSessionFilter === 'lunch' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                  LUNCH SESSION
+                </span>
+                <span className={`p-2 rounded-xl text-xs ${mealSessionFilter === 'lunch' ? 'bg-white/20 text-white' : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600'}`}>
+                  🍛
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black font-mono tracking-tight">
+                  {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('lunch')).length}
+                </span>
+                <span className={`text-xs ${mealSessionFilter === 'lunch' ? 'text-emerald-200' : 'text-slate-400'}`}>01:00 PM - 02:30 PM</span>
+              </div>
+              <div className={`mt-2 text-[10px] flex items-center justify-between pt-2 border-t ${mealSessionFilter === 'lunch' ? 'border-white/20 text-emerald-100' : 'border-slate-100 dark:border-slate-800 text-slate-500'}`}>
+                <span>Collected: {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('lunch') && (b.foodCollected || b.status === 'Approved & Served')).length}</span>
+                <span>Pending: {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('lunch') && !b.foodCollected && b.status !== 'Approved & Served').length}</span>
+              </div>
+            </div>
+
+            {/* 4. Dinner */}
+            <div 
+              onClick={() => setMealSessionFilter('dinner')}
+              className={`p-4 rounded-3xl border transition-all cursor-pointer select-none ${
+                mealSessionFilter === 'dinner'
+                  ? 'bg-gradient-to-br from-indigo-600 to-blue-800 text-white shadow-lg shadow-indigo-600/20 border-transparent ring-2 ring-indigo-400/50'
+                  : 'bg-white dark:bg-[#0d121f] border-slate-200 dark:border-slate-800 hover:border-indigo-500/50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${mealSessionFilter === 'dinner' ? 'text-indigo-100' : 'text-slate-500'}`}>
+                  DINNER SESSION
+                </span>
+                <span className={`p-2 rounded-xl text-xs ${mealSessionFilter === 'dinner' ? 'bg-white/20 text-white' : 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600'}`}>
+                  🍲
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-black font-mono tracking-tight">
+                  {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('dinner')).length}
+                </span>
+                <span className={`text-xs ${mealSessionFilter === 'dinner' ? 'text-indigo-200' : 'text-slate-400'}`}>08:30 PM - 10:00 PM</span>
+              </div>
+              <div className={`mt-2 text-[10px] flex items-center justify-between pt-2 border-t ${mealSessionFilter === 'dinner' ? 'border-white/20 text-indigo-100' : 'border-slate-100 dark:border-slate-800 text-slate-500'}`}>
+                <span>Collected: {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('dinner') && (b.foodCollected || b.status === 'Approved & Served')).length}</span>
+                <span>Pending: {mealBookings.filter(b => (b.mealType || '').toLowerCase().includes('dinner') && !b.foodCollected && b.status !== 'Approved & Served').length}</span>
+              </div>
+            </div>
           </div>
 
           {/* Instant Student ID Counter Verification & Search Bar */}
@@ -1369,6 +1580,10 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
                     {(() => {
                       const q = mealSearchQuery.toLowerCase().trim();
                       const listToRender = mealBookings.filter((b) => {
+                        if (mealSessionFilter !== 'all') {
+                          const mType = (b.mealType || '').toLowerCase();
+                          if (!mType.includes(mealSessionFilter)) return false;
+                        }
                         if (!q) return true;
                         return (
                           (b.studentId && b.studentId.toLowerCase().includes(q)) ||
@@ -1965,6 +2180,138 @@ export default function StaffDashboard({ currentUser, onLogout, onShowToast }) {
                   className="px-5 py-2.5 rounded-xl bg-amber-700 hover:bg-amber-800 text-white font-semibold shadow-md"
                 >
                   Submit Voucher to Provost
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: UPDATE WORK ORDER LIVE PROGRESS & NOTES                            */}
+      {/* ========================================================================= */}
+      {progressModalOpen && selectedTicketForProgress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 p-6 md:p-8 shadow-2xl text-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Activity size={18} className="text-blue-600 animate-pulse" />
+                  <span>Update Work Progress & Crew Notes</span>
+                </h2>
+                <p className="text-slate-500 mt-0.5">
+                  Updating progress updates the live status visible to Student, Floor Teacher, and Provost.
+                </p>
+              </div>
+              <button
+                onClick={() => setProgressModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-slate-900 dark:text-white text-xs block">
+                  {selectedTicketForProgress.title || selectedTicketForProgress.category}
+                </span>
+                <span className="text-slate-500 font-mono text-[11px]">
+                  {selectedTicketForProgress.room || selectedTicketForProgress.location} • Ticket #{selectedTicketForProgress.ticketId || selectedTicketForProgress.id}
+                </span>
+              </div>
+              <span className="font-bold font-mono text-blue-600 text-sm">{progressPercentInput}%</span>
+            </div>
+
+            <form onSubmit={handleSubmitProgress} className="space-y-4">
+              {/* Progress Slider & Value */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5 font-semibold">
+                  <label className="text-slate-700 dark:text-slate-300">Completion Progress Percentage</label>
+                  <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{progressPercentInput}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={progressPercentInput}
+                  onChange={(e) => setProgressPercentInput(Number(e.target.value))}
+                  className="w-full h-2.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+
+                {/* Quick Action Percentage Buttons */}
+                <div className="grid grid-cols-4 gap-2 mt-2.5">
+                  {[
+                    { pct: 25, label: '25% Inspected' },
+                    { pct: 50, label: '50% In Work' },
+                    { pct: 75, label: '75% Testing' },
+                    { pct: 100, label: '100% Done' },
+                  ].map((btn) => (
+                    <button
+                      key={btn.pct}
+                      type="button"
+                      onClick={() => setProgressPercentInput(btn.pct)}
+                      className={`py-1.5 px-2 rounded-xl text-[10px] font-bold transition-all border ${
+                        progressPercentInput === btn.pct
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-400'
+                      }`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  On-Site Crew Notes & Actions Taken
+                </label>
+                <textarea
+                  rows={3}
+                  value={staffNotesInput}
+                  onChange={(e) => setStaffNotesInput(e.target.value)}
+                  placeholder="e.g. Inspected circuit panel, replaced faulty 20A breaker and tested socket voltage. Everything normal now."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-600 resize-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Estimated Time of Completion (ETA)
+                </label>
+                <input
+                  type="text"
+                  value={etaInput}
+                  onChange={(e) => setEtaInput(e.target.value)}
+                  placeholder="e.g. Today 04:30 PM / Within 1 Hour / Completed"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setProgressModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingProgress}
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md transition-all flex items-center gap-1.5"
+                >
+                  {isUpdatingProgress ? (
+                    <span>Broadcasting...</span>
+                  ) : (
+                    <>
+                      <Activity size={14} />
+                      <span>Broadcast Live Progress</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

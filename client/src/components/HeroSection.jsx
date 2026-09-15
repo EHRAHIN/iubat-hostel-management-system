@@ -85,18 +85,18 @@ export default function HeroSection({ rooms: initialRooms = [], onOpenApplyModal
             <div className="ios-glass-pill ios-tap-active inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-emerald-800 dark:text-emerald-300 text-xs font-semibold cursor-pointer">
               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
               <Sparkles size={13} className="text-emerald-600 dark:text-emerald-400" />
-              <span>IUBAT Student Residential Portal • Spring 2026</span>
+              <span>Student Residential Portal • Spring 2026</span>
               <ChevronRight size={13} className="text-emerald-500" />
             </div>
 
             {/* Main Software Headline */}
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.1]">
-              IUBAT Hostel <span className="saas-gradient-text">Seat Management System</span>
+              Hostel <span className="saas-gradient-text">Seat Allocation Management System</span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
-              A centralized digital platform for IUBAT students and hostel administration. Easily check room vacancies, apply for available seats, request out-passes, find compatible roommates, and manage mess billing.
+              A centralized digital platform for students and hostel administration. Easily check room vacancies, apply for available seats, request out-passes, find compatible roommates, and manage mess billing.
             </p>
 
             {/* Call to Actions */}
@@ -150,7 +150,7 @@ export default function HeroSection({ rooms: initialRooms = [], onOpenApplyModal
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
-                  <span className="ml-2 text-[10px] font-mono text-slate-400">iubat-hostel-system/live</span>
+                  <span className="ml-2 text-[10px] font-mono text-slate-400">hostel-allocation-system/live</span>
                 </div>
 
                 <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
@@ -311,7 +311,7 @@ export default function HeroSection({ rooms: initialRooms = [], onOpenApplyModal
               <div className="mt-4 pt-3.5 border-t border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                 <div className="flex items-center gap-1.5">
                   <Terminal size={13} className="text-slate-400" />
-                  <span>IUBAT Hostel Seat Management System</span>
+                  <span>Hostel Seat Allocation Management System</span>
                 </div>
                 <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold font-mono">
                   <span>Spring 2026 Live Session</span>

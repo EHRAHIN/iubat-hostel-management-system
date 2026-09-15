@@ -51,7 +51,7 @@ exports.createGatePass = async (req, res) => {
     }
 
     const passId = `LP-2026-${Math.floor(100 + Math.random() * 900)}`;
-    const qrPassCode = `IUBAT-QR-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    const qrPassCode = `HSTL-QR-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
 
     const gatePass = await GatePass.create({
       passId,

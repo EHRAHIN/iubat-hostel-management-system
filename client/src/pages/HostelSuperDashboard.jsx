@@ -115,7 +115,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
 
   const [activeTab, setActiveTab] = useState(() => {
     try {
-      return localStorage.getItem('iubat_provost_tab') || 'allocations';
+      return localStorage.getItem('hostel_provost_tab') || 'allocations';
     } catch {
       return 'allocations';
     }
@@ -123,7 +123,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
 
   useEffect(() => {
     try {
-      localStorage.setItem('iubat_provost_tab', activeTab);
+      localStorage.setItem('hostel_provost_tab', activeTab);
     } catch (e) {
       console.error(e);
     }
@@ -133,8 +133,8 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
   const provost = {
     name: currentUser?.name || 'Prof. Dr. Monirul Islam',
     title: 'Provost & Chief Residential Warden',
-    department: 'Office of the Provost, IUBAT Residential Operations',
-    provostId: currentUser?.userId || 'PRV-IUBAT-001',
+    department: 'Office of the Provost, Hostel Residential Operations',
+    provostId: currentUser?.userId || 'PRV-HSTL-001',
     jurisdiction: 'Padma Residential Hall (Campus Male Residence)',
   };
 
@@ -152,7 +152,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
       _id: 'tut-pad-1',
       userId: 'TUT-PAD-001',
       name: 'Dr. Tariqul Islam',
-      email: 'tutor.padma1@iubat.edu',
+      email: 'tutor.padma1@hostel.edu',
       role: 'teacher',
       department: 'Department of Computer Science & Engineering (CSE)',
       hall: 'Padma Residential Hall (Male)',
@@ -165,7 +165,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
       _id: 'tut-pad-2',
       userId: 'TUT-PAD-002',
       name: 'Prof. Anisur Rahman',
-      email: 'tutor.padma2@iubat.edu',
+      email: 'tutor.padma2@hostel.edu',
       role: 'teacher',
       department: 'Department of Electrical & Electronic Engineering (EEE)',
       hall: 'Padma Residential Hall (Male)',
@@ -180,7 +180,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
       _id: 'stf-mnt-pad',
       userId: 'STF-MNT-PAD-001',
       name: 'Md. Kalam Hossain',
-      email: 'maintenance.padma@iubat.edu',
+      email: 'maintenance.padma@hostel.edu',
       role: 'staff',
       staffSubtype: 'maintenance',
       department: 'Padma Hall Maintenance Staff (Electricity, Net, Plumbing, Furniture)',
@@ -194,7 +194,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
       _id: 'stf-din-pad',
       userId: 'STF-DIN-PAD-001',
       name: 'Md. Faruk Hossain',
-      email: 'dining.padma@iubat.edu',
+      email: 'dining.padma@hostel.edu',
       role: 'staff',
       staffSubtype: 'dining',
       department: 'Padma Hall Dining Staff (Daily Bazar, Kitchen & Meal Token Approval)',
@@ -383,7 +383,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
   };
 
   const handleCopyCredentials = (email, pass, id) => {
-    const text = `IUBAT Smart Hall Official Credentials:\nRole: Institutional Staff/Tutor\nID: ${id}\nEmail: ${email}\nInitial Password: ${pass}\nPortal: http://localhost:5173`;
+    const text = `Hostel Official Credentials:\nRole: Institutional Staff/Tutor\nID: ${id}\nEmail: ${email}\nInitial Password: ${pass}\nPortal: http://localhost:5173`;
     navigator.clipboard.writeText(text);
     onShowToast(`Credentials for ${email} copied to clipboard!`, 'success');
   };
@@ -1103,7 +1103,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
 
           <button
             onClick={onLogout}
-            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
+            className="ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 hover:border-rose-600 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white dark:border-rose-900/50 dark:hover:border-rose-600 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:shadow-rose-600/20"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -2465,6 +2465,39 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                           <span className="font-mono text-slate-500 text-[10px]">#{ticketId}</span>
                         </div>
 
+                        {/* Live Maintenance Work Progress Bar */}
+                        {(ticket.status?.includes('In Progress') || (ticket.progressPercent && ticket.progressPercent > 0) || ticket.status?.includes('Resolved')) && (
+                          <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px] font-bold">
+                              <span className="text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${ticket.progressPercent >= 100 ? 'bg-emerald-500' : 'bg-blue-500 animate-pulse'} inline-block`} />
+                                {ticket.progressPercent >= 100 ? 'Work Completed (100%)' : 'Active Crew Progress'}
+                              </span>
+                              <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{ticket.progressPercent || 0}%</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-blue-200/50 dark:bg-blue-900/60 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  ticket.progressPercent >= 100
+                                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                    : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                }`}
+                                style={{ width: `${Math.min(100, Math.max(0, ticket.progressPercent || 0))}%` }}
+                              />
+                            </div>
+                            {ticket.staffNotes && (
+                              <p className="text-[10px] text-blue-800 dark:text-blue-200 italic mt-1 font-medium">
+                                Crew Note: "{ticket.staffNotes}"
+                              </p>
+                            )}
+                            {ticket.estimatedCompletion && (
+                              <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                                Est. Completion: <strong>{ticket.estimatedCompletion}</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         {/* Ticket Details */}
                         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-[11px] space-y-1 text-slate-600 dark:text-slate-400">
                           <div><strong>Student Ward:</strong> {ticket.studentName} ({ticket.studentId})</div>
@@ -2539,7 +2572,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                   title: '',
                   category: 'Allocation',
                   targetAudience: 'all',
-                  refNo: `IUBAT/PRV/2026/${String(totalCount).padStart(3, '0')}`,
+                  refNo: `HSTL/PRV/2026/${String(totalCount).padStart(3, '0')}`,
                   content: '',
                   isPinned: false,
                 });
@@ -2740,7 +2773,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                       setNewNoticeForm({
                         ...newNoticeForm,
                         category: cat,
-                        refNo: `IUBAT/${catCode}/2026/${String(notices.length + 1).padStart(3, '0')}`,
+                        refNo: `HSTL/${catCode}/2026/${String(notices.length + 1).padStart(3, '0')}`,
                       });
                     }}
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 cursor-pointer"
@@ -2782,7 +2815,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                   type="text"
                   value={newNoticeForm.refNo}
                   onChange={(e) => setNewNoticeForm({ ...newNoticeForm, refNo: e.target.value })}
-                  placeholder="e.g. IUBAT/PRV/2026/045"
+                  placeholder="e.g. HSTL/PRV/2026/045"
                   className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-xs outline-none focus:border-emerald-600"
                   required
                 />
@@ -2854,7 +2887,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                   <span>Provision {provisionForm.role === 'teacher' ? 'Floor Teacher (House Tutor)' : 'Staff & Operations'}</span>
                 </h2>
                 <p className="text-slate-500 mt-0.5">
-                  Issue official IUBAT credentials for hostel administration & security access.
+                  Issue official hostel credentials for administration & security access.
                 </p>
               </div>
               <button
@@ -3016,7 +3049,7 @@ export default function HostelSuperDashboard({ currentUser, onLogout, onShowToas
                     type="email"
                     value={provisionForm.email}
                     onChange={(e) => setProvisionForm({ ...provisionForm, email: e.target.value })}
-                    placeholder={provisionForm.role === 'teacher' ? 'tutor.name@iubat.edu' : 'staff.name@iubat.edu'}
+                    placeholder={provisionForm.role === 'teacher' ? 'tutor.name@hostel.edu' : 'staff.name@hostel.edu'}
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600"
                     required
                   />

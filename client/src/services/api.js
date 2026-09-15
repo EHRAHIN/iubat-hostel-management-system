@@ -6,8 +6,18 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
   
+  let activeRole = '';
+  try {
+    activeRole = sessionStorage.getItem('hostel_auth_role') || localStorage.getItem('hostel_auth_role') || '';
+    if (!activeRole) {
+      const savedUser = JSON.parse(sessionStorage.getItem('hostel_auth_user') || localStorage.getItem('hostel_auth_user') || '{}');
+      activeRole = savedUser?.role || '';
+    }
+  } catch (e) {}
+
   const headers = {
     'Content-Type': 'application/json',
+    ...(activeRole ? { 'x-user-role': activeRole } : {}),
     ...(options.headers || {}),
   };
 
@@ -103,6 +113,11 @@ export const api = {
     }),
   updateRoom: (id, data) =>
     request(`/rooms/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  updateRoomTariffs: (data) =>
+    request('/rooms/batch/tariffs', {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -211,6 +226,11 @@ export const api = {
     request(`/complaints/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify(statusData),
+    }),
+  updateComplaintProgress: (id, progressData) =>
+    request(`/complaints/${id}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify(progressData),
     }),
   updateComplaint: (id, data) =>
     request(`/complaints/${id}`, {

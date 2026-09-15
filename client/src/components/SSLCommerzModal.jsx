@@ -31,11 +31,12 @@ export default function SSLCommerzModal({
 }) {
   const [selectedTab, setSelectedTab] = useState('mobile'); // 'mobile' | 'cards' | 'net'
   const [selectedMethod, setSelectedMethod] = useState('bkash');
-  const [step, setStep] = useState('select'); // 'select' | 'gateway_form' | 'processing' | 'success'
+  const [step, setStep] = useState('confirm'); // 'confirm' | 'select' | 'gateway_form' | 'otp' | 'pin' | 'processing' | 'success'
   
   // Payment Form Fields
   const [accountNumber, setAccountNumber] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [otpCode, setOtpCode] = useState('892104');
+  const [otpCountdown, setOtpCountdown] = useState(60);
   const [pinCode, setPinCode] = useState('');
   const [cardHolder, setCardHolder] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -65,12 +66,13 @@ export default function SSLCommerzModal({
 
   useEffect(() => {
     if (isOpen) {
-      setStep('select');
+      setStep('confirm');
       setSelectedTab('mobile');
       setSelectedMethod('bkash');
       setAccountNumber(studentUser?.phone || '01712345678');
       setCardHolder(studentUser?.name || 'Resident Student');
       setOtpCode('892104');
+      setOtpCountdown(60);
       setPinCode('12345');
       setExpiryDate('12/28');
       setCvv('321');
@@ -80,6 +82,16 @@ export default function SSLCommerzModal({
       setLoading(false);
     }
   }, [isOpen, studentUser]);
+
+  useEffect(() => {
+    let timer;
+    if (step === 'otp' && otpCountdown > 0) {
+      timer = setInterval(() => {
+        setOtpCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, otpCountdown]);
 
   if (!isOpen) return null;
 
@@ -283,13 +295,14 @@ export default function SSLCommerzModal({
         channel: selectedMethod,
         customerInfo: {
           name: studentUser?.name || 'Resident Student',
-          email: studentUser?.email || 'student@iubat.edu',
+          email: studentUser?.email || 'student@hostel.edu',
           phone: accountNumber || studentUser?.phone || '01712345678',
         },
       };
 
       const initRes = await api.initSSLCommerzPayment(initPayload);
-      const tranId = initRes?.data?.transactionId || initRes?.data?.tran_id || `BOOKING-${Date.now().toString().slice(-6)}`;
+      const generatedTrx = `TRX-${Math.random().toString(36).substring(2, 6).toUpperCase()}${Date.now().toString().slice(-6)}`;
+      const tranId = initRes?.data?.transactionId || initRes?.data?.tran_id || generatedTrx;
 
       // Live verification steps animation
       setTimeout(() => setVerificationStep(2), 500);
@@ -335,7 +348,7 @@ export default function SSLCommerzModal({
       setTimeout(() => {
         const fallbackPayment = {
           invoiceNo,
-          transactionId: `BOOKING-${Date.now().toString().slice(-6)}`,
+          transactionId: `TRX-${Math.random().toString(36).substring(2, 6).toUpperCase()}${Date.now().toString().slice(-6)}`,
           amountBDT: rawAmount,
           status: 'Paid',
           paymentStatus: 'paid',
@@ -355,7 +368,7 @@ export default function SSLCommerzModal({
   };
 
   const handleClose = () => {
-    setStep('select');
+    setStep('confirm');
     setCompletedPayment(null);
     onClose();
   };
@@ -380,7 +393,7 @@ export default function SSLCommerzModal({
                 <span>256-Bit SSL/TLS Certified Gateway</span>
               </div>
               <p className="text-[10px] text-slate-400 font-mono">
-                Merchant: IUBAT Residential Services
+                Merchant: Hostel Residential Services
               </p>
             </div>
           </div>
@@ -430,9 +443,108 @@ export default function SSLCommerzModal({
         {/* ============================================================ */}
         <div className="p-5 space-y-4 text-xs">
 
+          {/* STEP 0: PRE-PAYMENT CONFIRMATION REVIEW SCREEN */}
+          {step === 'confirm' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                  <FileCheck2 size={18} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    পেমেন্ট নিশ্চিতকরণ ও তথ্য পর্যালোচনা (Payment Review & Resident Confirmation)
+                  </h3>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
+                    Please review your resident identity, allocated room, and itemized fee breakdown before proceeding to the secured SSLCommerz gateway.
+                  </p>
+                </div>
+              </div>
+
+              {/* Resident Identity Snapshot */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 space-y-2.5 shadow-sm">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1.5 flex items-center justify-between">
+                  <span>Resident Identification</span>
+                  <span className="text-emerald-600 font-mono font-bold flex items-center gap-1">
+                    <CheckCircle2 size={12} /> ID Verified
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 text-[10.5px] block">Student Resident Name</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{studentUser?.name || invoiceData?.studentName || 'Resident Student'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10.5px] block">Student ID Number</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{studentUser?.userId || studentUser?.id || invoiceData?.studentId || '19103001'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10.5px] block">Residential Hall</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{studentUser?.hall || invoiceData?.hall || 'Padma Residential Hall'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[10.5px] block">Allocated Room</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{studentUser?.room || invoiceData?.room || 'Room 101'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Itemized Fee Breakdown Table */}
+              <div className="p-4 rounded-2xl bg-white dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-1.5 flex items-center justify-between">
+                  <span>Itemized Fee Calculation</span>
+                  <span className="font-mono text-slate-500">Invoice: #{invoiceNo}</span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+                    <span className="text-slate-600 dark:text-slate-400">{feeType} ({month})</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">৳{baseAmount.toLocaleString()} BDT</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60">
+                    <span className="text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                      <span>5th of Month Late Fine Assessment</span>
+                      {isPast5th && isSeatRent && <span className="text-[10px] text-amber-600 font-bold">(Past 5th)</span>}
+                    </span>
+                    <span className={`font-mono font-bold ${lateFine > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>
+                      {lateFine > 0 ? `+৳${lateFine} BDT` : '৳0 (On Time)'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1.5 text-sm font-black border-t border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
+                    <span>Total Net Payable</span>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400">৳{rawAmount.toLocaleString()} BDT</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gateway Guarantee Strip */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 flex items-center gap-2">
+                <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
+                <span>Cleared via SSLCommerz Bangladesh Bank Approved Tier-1 Gateway with Instant TrxID Generation.</span>
+              </div>
+
+              {/* Confirmation Buttons */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="w-1/3 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep('select')}
+                  className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition-all cursor-pointer"
+                >
+                  <span>Confirm & Select Payment Channel</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* STEP 1: SELECT CHANNEL CATEGORY */}
           {step === 'select' && (
-            <div className="space-y-4">
+            <div className="space-y-4 animate-in fade-in duration-200">
               
               {/* Sandbox Quick-Test Bar */}
               <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-center justify-between gap-3">
@@ -539,19 +651,22 @@ export default function SSLCommerzModal({
                 })}
               </div>
 
-              {/* Security info */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 flex items-center gap-2">
-                <Lock size={14} className="text-emerald-600 shrink-0" />
-                <span>
-                  Select any payment channel above to proceed directly to the SSLCommerz payment authorization screen.
-                </span>
+              {/* Buttons */}
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep('confirm')}
+                  className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  ← Back to Review
+                </button>
               </div>
             </div>
           )}
 
-          {/* STEP 2: AUTHENTIC GATEWAY INPUT SCREEN */}
+          {/* STEP 2: AUTHENTIC GATEWAY INPUT SCREEN (Account Entry) */}
           {step === 'gateway_form' && (
-            <form onSubmit={handleExecutePayment} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); setStep('otp'); setOtpCountdown(60); }} className="space-y-4 animate-in fade-in duration-200">
               
               {/* Selected Channel Banner */}
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -593,37 +708,6 @@ export default function SSLCommerzModal({
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-sm outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
-                        6-Digit OTP
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="892104"
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-xs outline-none focus:ring-2 focus:ring-emerald-500 tracking-widest"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
-                        Wallet PIN
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        maxLength={5}
-                        placeholder="•••••"
-                        value={pinCode}
-                        onChange={(e) => setPinCode(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-xs outline-none focus:ring-2 focus:ring-emerald-500 tracking-widest"
-                      />
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -637,7 +721,7 @@ export default function SSLCommerzModal({
                     <input
                       type="text"
                       required
-                      placeholder="e.g. TANVIR HASAN"
+                      placeholder="e.g. MD. PARVEZ HASAN"
                       value={cardHolder}
                       onChange={(e) => setCardHolder(e.target.value)}
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-xs outline-none focus:ring-2 focus:ring-emerald-500 uppercase"
@@ -707,19 +791,6 @@ export default function SSLCommerzModal({
                       className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-xs outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
-                      Online Banking Password / OTP
-                    </label>
-                    <input
-                      type="password"
-                      required
-                      placeholder="••••••••"
-                      value={pinCode}
-                      onChange={(e) => setPinCode(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono text-xs outline-none"
-                    />
-                  </div>
                 </div>
               )}
 
@@ -732,16 +803,9 @@ export default function SSLCommerzModal({
                   className="rounded text-emerald-600 focus:ring-emerald-500"
                 />
                 <span className="text-[11px] text-slate-600 dark:text-slate-400">
-                  I authorize SSLCommerz to clear ৳{rawAmount.toLocaleString()} BDT for IUBAT Hostel Invoice #{invoiceNo}.
+                  I authorize SSLCommerz to verify account and process ৳{rawAmount.toLocaleString()} BDT for Hostel Invoice #{invoiceNo}.
                 </span>
               </label>
-
-              {errorMsg && (
-                <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
-                  <AlertCircle size={14} className="shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
 
               {/* Buttons */}
               <div className="flex items-center gap-2.5 pt-2">
@@ -755,11 +819,143 @@ export default function SSLCommerzModal({
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={!accountNumber}
                   className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-900/20 transition-all cursor-pointer disabled:opacity-50"
                 >
+                  <span>Send Authentic OTP</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* STEP 3: AUTHENTIC 6-DIGIT OTP VERIFICATION SCREEN */}
+          {step === 'otp' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-200">
+                    <Smartphone size={16} className="text-amber-600" />
+                    <span>6-Digit Security OTP Verification</span>
+                  </div>
+                  <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-[11px]">
+                    ⏱️ 00:{otpCountdown < 10 ? `0${otpCountdown}` : otpCountdown}s
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                  An authentic one-time password (OTP) was dispatched to registered mobile number <strong>{accountNumber}</strong> for clearing invoice <strong>#{invoiceNo}</strong>.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+                <label className="block text-slate-700 dark:text-slate-300 font-bold text-xs">
+                  Enter 6-Digit OTP Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="892104"
+                  className="w-full text-center tracking-[0.5em] font-mono font-black text-xl py-3 rounded-xl bg-slate-50 dark:bg-[#060911] border-2 border-emerald-500/80 text-slate-900 dark:text-white outline-none"
+                  autoFocus
+                />
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <button
+                    type="button"
+                    onClick={() => { setOtpCode('892104'); setOtpCountdown(60); }}
+                    className="text-emerald-600 hover:underline font-semibold cursor-pointer"
+                  >
+                    Quick Auto-Fill Test OTP (892104)
+                  </button>
+                  <span>Didn't get code? <button type="button" onClick={() => setOtpCountdown(60)} className="text-blue-600 hover:underline cursor-pointer">Resend</button></span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep('gateway_form')}
+                  className="w-1/3 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep('pin')}
+                  disabled={!otpCode || otpCode.length < 4}
+                  className="w-2/3 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                >
+                  <span>Verify OTP & Proceed to PIN</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: AUTHENTIC PIN ENTRY & FINAL EXECUTION */}
+          {step === 'pin' && (
+            <form onSubmit={handleExecutePayment} className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#070b14] border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
+                    <Lock size={16} className="text-emerald-600" />
+                    <span>Enter {currentChannel.name} PIN</span>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-emerald-600">৳{rawAmount.toLocaleString()} BDT</span>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-400 text-xs mb-1.5">
+                    Enter your 5-digit wallet PIN to authorize and generate TrxID:
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={5}
+                    value={pinCode}
+                    onChange={(e) => setPinCode(e.target.value)}
+                    placeholder="•••••"
+                    className="w-full text-center tracking-[0.5em] font-mono font-black text-xl py-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-emerald-500"
+                    autoFocus
+                    required
+                  />
+                  <div className="flex items-center justify-between mt-2 text-[10.5px] text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <Lock size={11} /> 256-bit SSL Encrypted
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPinCode('12345')}
+                      className="text-emerald-600 hover:underline font-semibold cursor-pointer"
+                    >
+                      Quick Auto-Fill PIN (12345)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {errorMsg && (
+                <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep('otp')}
+                  className="w-1/3 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || !pinCode}
+                  className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 transition-all cursor-pointer disabled:opacity-50"
+                >
                   <Lock size={14} />
-                  <span>Pay BDT ৳{rawAmount.toLocaleString()}</span>
+                  <span>Authorize ৳{rawAmount.toLocaleString()} BDT</span>
                 </button>
               </div>
             </form>
@@ -815,7 +1011,7 @@ export default function SSLCommerzModal({
                   ৳{rawAmount.toLocaleString()} BDT Paid in Full
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Official IUBAT Institutional Treasury Money Receipt generated.
+                  Official Institutional Treasury Money Receipt generated.
                 </p>
               </div>
 

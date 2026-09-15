@@ -103,7 +103,7 @@ const runSeedData = async (forceReset = false) => {
     {
       userId: '221004128',
       name: 'Tanvir Hasan',
-      email: 'student.cse@iubat.edu',
+      email: 'student.cse@hostel.edu',
       password: '123456',
       role: 'student',
       department: 'CSE',
@@ -126,7 +126,7 @@ const runSeedData = async (forceReset = false) => {
     {
       userId: 'TUT-PAD-001',
       name: 'Dr. Tariqul Islam',
-      email: 'tutor.padma1@iubat.edu',
+      email: 'tutor.padma1@hostel.edu',
       password: '123456',
       role: 'teacher',
       department: 'Department of Computer Science & Engineering (CSE)',
@@ -140,7 +140,7 @@ const runSeedData = async (forceReset = false) => {
     {
       userId: 'TUT-PAD-002',
       name: 'Prof. Anisur Rahman',
-      email: 'tutor.padma2@iubat.edu',
+      email: 'tutor.padma2@hostel.edu',
       password: '123456',
       role: 'teacher',
       department: 'Department of Electrical & Electronic Engineering (EEE)',
@@ -156,7 +156,7 @@ const runSeedData = async (forceReset = false) => {
     {
       userId: 'STF-MNT-PAD-001',
       name: 'Md. Kalam Hossain',
-      email: 'maintenance.padma@iubat.edu',
+      email: 'maintenance.padma@hostel.edu',
       password: '123456',
       role: 'staff',
       department: 'Padma Hall Maintenance Staff (Electricity, Net, Plumbing, Furniture)',
@@ -170,7 +170,7 @@ const runSeedData = async (forceReset = false) => {
     {
       userId: 'STF-DIN-PAD-001',
       name: 'Md. Faruk Hossain',
-      email: 'dining.padma@iubat.edu',
+      email: 'dining.padma@hostel.edu',
       password: '123456',
       role: 'staff',
       department: 'Padma Hall Dining Staff (Daily Bazar, Kitchen & Meal Token Approval)',
@@ -185,7 +185,7 @@ const runSeedData = async (forceReset = false) => {
     {
       userId: 'PRV-001',
       name: 'Prof. Dr. Monirul Islam',
-      email: 'provost@iubat.edu',
+      email: 'provost@hostel.edu',
       password: '123456',
       role: 'super',
       department: 'Academic Administration',
@@ -204,12 +204,12 @@ const runSeedData = async (forceReset = false) => {
       status: 'Active',
     },
     {
-      userId: 'ADM-IUBAT-001',
+      userId: 'ADM-HSTL-001',
       name: 'Engr. Mahbubur Rahman',
-      email: 'admin.it@iubat.edu',
+      email: 'admin.it@hostel.edu',
       password: '123456',
       role: 'admin',
-      department: 'IUBAT Central IT & Infrastructure Division',
+      department: 'Central IT & Infrastructure Division',
       phone: '+880 1713 998877',
       unit: 'Central IT & Server Infrastructure',
       status: 'Active',
@@ -522,7 +522,7 @@ const runSeedData = async (forceReset = false) => {
       title: 'Fall 2026 Residential Hall Seat Application Schedule and Deadline',
       date: 'September 12, 2026',
       category: 'Allocation',
-      refNo: 'IUBAT/RO/2026/042',
+      refNo: 'HSTL/RO/2026/042',
       summary: 'All eligible students seeking hostel accommodation for the upcoming semester must complete online submissions before September 25, 2026.',
       authority: 'Office of the Provost',
       isPinned: true,
@@ -531,7 +531,7 @@ const runSeedData = async (forceReset = false) => {
       title: 'Standard Operating Procedure: Night Attendance and 10:00 PM Curfew Timing',
       date: 'September 08, 2026',
       category: 'Administration',
-      refNo: 'IUBAT/HD/2026/019',
+      refNo: 'HSTL/HD/2026/019',
       summary: 'Floor teachers will conduct scheduled digital roll call at 10:00 PM daily. Unapproved absences will generate automatic guardian alerts.',
       authority: 'Hostel Disciplinary Committee',
       isPinned: false,
@@ -540,7 +540,7 @@ const runSeedData = async (forceReset = false) => {
       title: 'Monthly Mess Billing and Dining Token Clearance for September 2026',
       date: 'September 02, 2026',
       category: 'Dining',
-      refNo: 'IUBAT/MC/2026/008',
+      refNo: 'HSTL/MC/2026/008',
       summary: 'Students may recharge dining allowances and verify monthly token counts via the Student Portal by the 5th of every month.',
       authority: 'Hostel Mess Management Committee',
       isPinned: false,
@@ -549,7 +549,7 @@ const runSeedData = async (forceReset = false) => {
       title: 'Scheduled Network Maintenance and High-Speed LAN Upgrade in Padma Hall',
       date: 'August 28, 2026',
       category: 'Maintenance',
-      refNo: 'IUBAT/IT/2026/011',
+      refNo: 'HSTL/IT/2026/011',
       summary: 'IT infrastructure maintenance will take place on Saturday between 09:00 AM and 01:00 PM. Minimal internet disruption is expected.',
       authority: 'Estate and IT Services',
       isPinned: false,
@@ -559,7 +559,7 @@ const runSeedData = async (forceReset = false) => {
   // 6. Insert Applications
   const applications = await Application.insertMany([
     {
-      applicationRef: '#IUBAT-APP-8492',
+      applicationRef: '#HSTL-APP-8492',
       fullName: 'Tanvir Hasan',
       studentId: '221004128',
       department: 'CSE',
@@ -572,7 +572,7 @@ const runSeedData = async (forceReset = false) => {
       allocatedBed: 'Bed B',
     },
     {
-      applicationRef: '#IUBAT-APP-7104',
+      applicationRef: '#HSTL-APP-7104',
       fullName: 'Mahmudur Rahman',
       studentId: '221005592',
       department: 'EEE',
@@ -582,7 +582,7 @@ const runSeedData = async (forceReset = false) => {
       status: 'Pending Review',
     },
     {
-      applicationRef: '#IUBAT-APP-9218',
+      applicationRef: '#HSTL-APP-9218',
       fullName: 'Sadiya Afrin',
       studentId: '221003481',
       department: 'BBA',
@@ -612,7 +612,7 @@ const runSeedData = async (forceReset = false) => {
       reason: 'Family visit over the weekend.',
       status: 'Teacher Approved',
       approvedBy: 'Prof. Anisur Rahman',
-      qrPassCode: 'IUBAT-QR-PASS-9842',
+      qrPassCode: 'HSTL-QR-PASS-9842',
     },
   ]);
 
@@ -679,7 +679,7 @@ const seedDatabase = async (req, res) => {
     const counts = await runSeedData(forceReset);
     res.status(200).json({
       success: true,
-      message: counts.alreadySeeded ? 'Database already populated. Existing records preserved.' : 'MongoDB successfully seeded with complete IUBAT dataset!',
+      message: counts.alreadySeeded ? 'Database already populated. Existing records preserved.' : 'MongoDB successfully seeded with complete hostel dataset!',
       counts,
     });
   } catch (error) {

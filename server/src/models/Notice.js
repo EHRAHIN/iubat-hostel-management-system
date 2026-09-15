@@ -28,7 +28,7 @@ const noticeSchema = new mongoose.Schema(
     },
     refNo: {
       type: String,
-      required: true, // e.g. 'IUBAT/PRV/2026/042'
+      required: true, // e.g. 'HSTL/PRV/2026/042'
     },
     summary: {
       type: String,

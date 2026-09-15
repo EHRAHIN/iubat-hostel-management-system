@@ -12,9 +12,11 @@ export default function OfficialCircularModal({ notice, onClose }) {
     window.print();
   };
 
+  const circularPrintRef = React.useRef(null);
+
   // Check if content has standard curfew/attendance text to expand with complete institutional directives
   const isNightCurfewNotice = 
-    notice.refNo === 'IUBAT/HD/2026/019' || 
+    notice.refNo === 'HSTL/HD/2026/019' || 
     (notice.title && notice.title.toLowerCase().includes('curfew')) ||
     (notice.title && notice.title.toLowerCase().includes('night attendance'));
 
@@ -29,60 +31,47 @@ export default function OfficialCircularModal({ notice, onClose }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* Container */}
-      <div
-        id="printable-circular-card"
-        className="w-full max-w-2xl flex flex-col my-auto transition-all print:w-full print:max-w-full"
-      >
+      <div className="w-full max-w-4xl max-h-[96vh] flex flex-col print:max-w-none print:max-h-none">
         
-        {/* Floating Top Control Toolbar (Excluded from print) */}
-        <div className="mb-3 px-4 py-2.5 bg-slate-900/90 text-white rounded-2xl border border-slate-700/60 shadow-xl flex items-center justify-between gap-3 print:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600/30 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
-              <FileText size={16} />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
-                <span>Official Institutional Circular</span>
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Official circular format for A4 printing and record keeping
-              </p>
-            </div>
+        {/* ACTION / PRINT BAR (Hidden on Print) */}
+        <div className="mb-3 px-5 py-3 bg-slate-900/90 backdrop-blur-md text-white rounded-2xl border border-slate-700/60 shadow-xl flex items-center justify-between print:hidden">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="font-bold text-xs tracking-wide">Official Institutional Circular</span>
+            <span className="text-slate-400 text-[11px] hidden sm:inline">• Hall Directorate Public Release</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
             >
-              <Printer size={13} />
-              <span>Print / Save PDF</span>
+              <Printer size={14} />
+              <span>Print / Download PDF</span>
             </button>
-
             <button
+              type="button"
               onClick={onClose}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
               title="Close"
-              className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-slate-700 hover:border-rose-500"
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* OFFICIAL A4 INSTITUTIONAL LETTERHEAD CANVAS                               */}
-        {/* ========================================================================= */}
-        <div
-          id="printable-circular"
-          className="relative bg-white text-slate-900 shadow-2xl rounded-sm border border-slate-200 p-6 sm:p-10 md:p-12 print:p-0 print:border-none print:shadow-none font-serif leading-normal overflow-hidden select-text"
-          style={{ minHeight: '842px' }}
+        {/* AUTHENTIC PRINTABLE INSTITUTIONAL GAZETTE / CIRCULAR DOCUMENT */}
+        <div 
+          ref={circularPrintRef}
+          className="relative bg-white text-slate-900 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-10 md:p-12 border border-slate-200 overflow-y-auto print:overflow-visible print:border-none print:shadow-none print:p-8 print:m-0 print:rounded-none"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
         >
           {/* Subtle Security Background Watermark */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-[0.028]">
             <div className="text-center transform -rotate-30">
               <div className="w-64 h-64 border-8 border-emerald-950 rounded-full flex flex-col items-center justify-center p-4">
-                <span className="font-serif font-black text-4xl tracking-widest text-emerald-950">IUBAT</span>
+                <span className="font-serif font-black text-4xl tracking-widest text-emerald-950">HOSTEL</span>
                 <span className="font-serif font-bold text-xs tracking-wider text-emerald-950 uppercase mt-2">Residential Hall</span>
                 <span className="font-sans font-bold text-[10px] tracking-widest text-slate-800 mt-1">OFFICIAL GAZETTE</span>
               </div>
@@ -109,10 +98,10 @@ export default function OfficialCircularModal({ notice, onClose }) {
 
               {/* University Title */}
               <h1 className="text-base sm:text-lg md:text-xl font-bold uppercase tracking-wider text-emerald-950 font-serif leading-tight">
-                International University of Business Agriculture and Technology
+                Hostel Seat Allocation Management System
               </h1>
               <p className="text-[11px] font-sans uppercase tracking-widest font-semibold text-slate-600 mt-0.5">
-                The First Non-Government University in Bangladesh
+                Centralized Residential Hall Directorate
               </p>
 
               {/* Department & Hall */}
@@ -127,7 +116,7 @@ export default function OfficialCircularModal({ notice, onClose }) {
                   4 Embankment Drive Road, Sector 10, Uttara Model Town, Dhaka-1230, Bangladesh
                 </p>
                 <p className="text-[9.5px] font-sans text-slate-500 font-mono tracking-tight">
-                  Phone: +880 2 55091801-5 | Email: provost@iubat.edu | Web: www.iubat.edu
+                  Phone: +880 2 55091801-5 | Email: provost@hostel.edu | Web: www.hostel.edu
                 </p>
               </div>
             </div>
@@ -261,7 +250,7 @@ export default function OfficialCircularModal({ notice, onClose }) {
                       PADMA RESIDENTIAL HALL
                     </div>
                     <div className="text-[5px] font-serif font-black text-emerald-900 mt-0.5">
-                      IUBAT
+                      HSTL
                     </div>
                     <div className="text-[5px] font-mono text-slate-500 mt-0.5 font-bold">
                       VERIFIED 2026
@@ -303,7 +292,7 @@ export default function OfficialCircularModal({ notice, onClose }) {
                   Padma Residential Hall
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  IUBAT — International University of Business Agriculture and Technology
+                  Hostel Seat Allocation Management System • Residential Hall Directorate
                 </div>
               </div>
             </div>
@@ -314,9 +303,9 @@ export default function OfficialCircularModal({ notice, onClose }) {
                 Distribution / Copy forwarded for kind information and necessary action to:
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5 leading-tight font-mono text-[9.5px]">
-                <div>1. Office of the Vice-Chancellor, IUBAT (for kind appraisal of the Hon'ble VC)</div>
-                <div>2. Office of the Registrar, IUBAT</div>
-                <div>3. Office of the Proctor, IUBAT</div>
+                <div>1. Office of the Vice-Chancellor (for kind appraisal of the Hon'ble VC)</div>
+                <div>2. Office of the Registrar</div>
+                <div>3. Office of the Proctor</div>
                 <div>4. All Floor House Tutors & Assistant Wardens, Padma Hall</div>
                 <div>5. Security & Gate Protocol Command Desk (Padma Hall)</div>
                 <div>6. Hall Notice Boards (Ground Floor & Dining Hall) & Student Web Portal</div>
@@ -330,7 +319,7 @@ export default function OfficialCircularModal({ notice, onClose }) {
         {/* Modal Bottom Close Bar (Hidden on Print) */}
         <div className="mt-3 px-5 py-2.5 bg-slate-900/90 text-white rounded-2xl border border-slate-700/60 shadow-xl flex items-center justify-between text-xs print:hidden">
           <div className="flex items-center gap-2 text-slate-400 text-[11px]">
-            <span>IUBAT Padma Residential Hall</span>
+            <span>Padma Residential Hall</span>
             <span>•</span>
             <span className="text-emerald-400 font-medium">Official Notice</span>
           </div>

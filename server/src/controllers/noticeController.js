@@ -98,7 +98,7 @@ exports.createNotice = async (req, res) => {
 
     const officialRef = (refNo && refNo.trim()) 
       ? refNo.trim() 
-      : `IUBAT/${catCode}/2026/${String(totalCount).padStart(3, '0')}`;
+      : `HSTL/${catCode}/2026/${String(totalCount).padStart(3, '0')}`;
 
     const audienceLabels = {
       all: 'All Residents & Campus',

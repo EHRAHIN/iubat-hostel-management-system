@@ -65,12 +65,70 @@ export default function PortalLoginModal({
     agreeTerms: true,
   });
 
+  // Dynamic Room Tariffs State & Sync
+  const [roomTariffs, setRoomTariffs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hostel_tariff_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          single: Number(parsed.singleRoomRentBDT) || 5500,
+          double: Number(parsed.doubleRoomRentBDT) || 3500,
+          quad: Number(parsed.quadRoomRentBDT) || 2500,
+        };
+      }
+    } catch (e) {}
+    return { single: 5500, double: 3500, quad: 2500 };
+  });
+
   useEffect(() => {
     if (isOpen) {
       setAuthMode(defaultMode || 'login');
       setSelectedRole(defaultRole || 'student');
       setErrorMsg('');
       setSuccessMsg('');
+
+      const loadTariffs = async () => {
+        try {
+          const saved = localStorage.getItem('hostel_tariff_settings');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setRoomTariffs({
+              single: Number(parsed.singleRoomRentBDT) || 5500,
+              double: Number(parsed.doubleRoomRentBDT) || 3500,
+              quad: Number(parsed.quadRoomRentBDT) || 2500,
+            });
+          }
+          const res = await api.getRooms();
+          if (res?.data && res.data.length > 0) {
+            const s = res.data.find((r) => r.roomType?.includes('Single'))?.monthlyRent;
+            const d = res.data.find((r) => r.roomType?.includes('Double'))?.monthlyRent;
+            const q = res.data.find((r) => r.roomType?.includes('4-Bed') || r.roomType?.includes('Quad'))?.monthlyRent;
+            setRoomTariffs((prev) => ({
+              single: s || prev.single,
+              double: d || prev.double,
+              quad: q || prev.quad,
+            }));
+          }
+        } catch (e) {}
+      };
+
+      loadTariffs();
+
+      const handleTariffsUpdated = (e) => {
+        if (e.detail?.singleRent || e.detail?.doubleRent || e.detail?.quadRent) {
+          setRoomTariffs({
+            single: Number(e.detail.singleRent) || 5500,
+            double: Number(e.detail.doubleRent) || 3500,
+            quad: Number(e.detail.quadRent) || 2500,
+          });
+        } else {
+          loadTariffs();
+        }
+      };
+
+      window.addEventListener('hostel_tariffs_updated', handleTariffsUpdated);
+      return () => window.removeEventListener('hostel_tariffs_updated', handleTariffsUpdated);
     }
   }, [isOpen, defaultRole, defaultMode]);
 
@@ -107,7 +165,7 @@ export default function PortalLoginModal({
       icon: UserCheck,
       email: '',
       desc: 'Daily Roll Call, Attendance & Leave Approvals',
-      placeholder: 'tutor.padma1@iubat.edu or Tutor ID',
+      placeholder: 'tutor.padma1@hostel.edu or Tutor ID',
       label: 'Teacher Institutional Email / Tutor ID',
       hint: 'House Tutor credentials',
     },
@@ -118,7 +176,7 @@ export default function PortalLoginModal({
       icon: Wrench,
       email: '',
       desc: 'Repairs, Electricity, Net, Plumbing, Daily Bazar & Meal Approvals',
-      placeholder: 'maintenance.padma@iubat.edu or Staff ID',
+      placeholder: 'maintenance.padma@hostel.edu or Staff ID',
       label: 'Staff Institutional Email / Staff ID',
       hint: 'Maintenance / Dining staff credentials',
     },
@@ -129,7 +187,7 @@ export default function PortalLoginModal({
       icon: ShieldCheck,
       email: '',
       desc: 'Provost Approvals, Quotas & Hall Administration',
-      placeholder: 'hostelsuper, provost@iubat.edu, or PRV-001',
+      placeholder: 'hostelsuper, provost@hostel.edu, or PRV-001',
       label: 'Hostel Super ID or Provost Email',
       hint: 'Provost office credentials',
     },
@@ -140,7 +198,7 @@ export default function PortalLoginModal({
       icon: Crown,
       email: '',
       desc: 'Full Infrastructure, Hall Matrix & Audit Logs',
-      placeholder: 'admin, admin.it@iubat.edu, or ADM-001',
+      placeholder: 'admin, admin.it@hostel.edu, or ADM-001',
       label: 'Admin ID or IT Administrator Email',
       hint: 'Central IT Division credentials',
     },
@@ -295,7 +353,7 @@ export default function PortalLoginModal({
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-bold tracking-tight">
-                    IUBAT Residence Portal
+                    Hostel Residence Portal
                   </h2>
                   <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-200">
                     Smart Hall v2.0
@@ -419,7 +477,7 @@ export default function PortalLoginModal({
                       type="button"
                       onClick={() => {
                         setErrorMsg('');
-                        setCredentials({ username: 'student.cse@iubat.edu', password: '123456', rememberMe: true });
+                        setCredentials({ username: 'student.cse@hostel.edu', password: '123456', rememberMe: true });
                       }}
                       className="w-full text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-xs font-semibold flex items-center justify-between text-slate-800 dark:text-slate-200 transition-colors shadow-xs"
                     >
@@ -434,7 +492,7 @@ export default function PortalLoginModal({
                         type="button"
                         onClick={() => {
                           setErrorMsg('');
-                          setCredentials({ username: 'tutor.padma1@iubat.edu', password: '123456', rememberMe: true });
+                          setCredentials({ username: 'tutor.padma1@hostel.edu', password: '123456', rememberMe: true });
                         }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
@@ -444,7 +502,7 @@ export default function PortalLoginModal({
                         type="button"
                         onClick={() => {
                           setErrorMsg('');
-                          setCredentials({ username: 'tutor.padma2@iubat.edu', password: '123456', rememberMe: true });
+                          setCredentials({ username: 'tutor.padma2@hostel.edu', password: '123456', rememberMe: true });
                         }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
@@ -458,7 +516,7 @@ export default function PortalLoginModal({
                       type="button"
                       onClick={() => {
                         setErrorMsg('');
-                        setCredentials({ username: 'provost@iubat.edu', password: '123456', rememberMe: true });
+                        setCredentials({ username: 'provost@hostel.edu', password: '123456', rememberMe: true });
                       }}
                       className="w-full text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-xs font-semibold flex items-center justify-between text-slate-800 dark:text-slate-200 transition-colors shadow-xs"
                     >
@@ -473,7 +531,7 @@ export default function PortalLoginModal({
                         type="button"
                         onClick={() => {
                           setErrorMsg('');
-                          setCredentials({ username: 'maintenance.padma@iubat.edu', password: '123456', rememberMe: true });
+                          setCredentials({ username: 'maintenance.padma@hostel.edu', password: '123456', rememberMe: true });
                         }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
@@ -483,7 +541,7 @@ export default function PortalLoginModal({
                         type="button"
                         onClick={() => {
                           setErrorMsg('');
-                          setCredentials({ username: 'dining.padma@iubat.edu', password: '123456', rememberMe: true });
+                          setCredentials({ username: 'dining.padma@hostel.edu', password: '123456', rememberMe: true });
                         }}
                         className="text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-[11px] font-semibold text-slate-800 dark:text-slate-200 transition-colors truncate"
                       >
@@ -511,7 +569,7 @@ export default function PortalLoginModal({
                       type="button"
                       onClick={() => {
                         setErrorMsg('');
-                        setCredentials({ username: 'admin.it@iubat.edu', password: '123456', rememberMe: true });
+                        setCredentials({ username: 'admin.it@hostel.edu', password: '123456', rememberMe: true });
                       }}
                       className="w-full text-left p-2 rounded-xl bg-white dark:bg-[#060911] border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-xs font-semibold flex items-center justify-between text-slate-800 dark:text-slate-200 transition-colors shadow-xs"
                     >
@@ -547,7 +605,7 @@ export default function PortalLoginModal({
                     </label>
                     <button
                       type="button"
-                      onClick={() => alert('Please contact IUBAT Central IT Division at support@iubat.edu or Room 204 to reset your portal password.')}
+                      onClick={() => alert('Please contact Central IT Division at support@hostel.edu or Room 204 to reset your portal password.')}
                       className="text-[11px] text-emerald-700 dark:text-emerald-400 hover:underline font-medium"
                     >
                       Forgot password?
@@ -750,9 +808,9 @@ export default function PortalLoginModal({
 
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { capacity: 1, title: '1 Person Room', sub: 'Single Deluxe', rent: '৳3,800/mo', badge: 'Private AC Desk' },
-                    { capacity: 2, title: '2 Persons Room', sub: 'Double Shared', rent: '৳2,200/mo', badge: 'Most Popular' },
-                    { capacity: 4, title: '4 Persons Room', sub: '4-Bed Standard', rent: '৳1,400/mo', badge: 'Economy Shared' },
+                    { capacity: 1, title: '1 Person Room', sub: 'Single Deluxe', rent: `৳${(roomTariffs.single || 5500).toLocaleString()}/mo`, badge: 'Private AC Desk' },
+                    { capacity: 2, title: '2 Persons Room', sub: 'Double Shared', rent: `৳${(roomTariffs.double || 3500).toLocaleString()}/mo`, badge: 'Most Popular' },
+                    { capacity: 4, title: '4 Persons Room', sub: '4-Bed Standard', rent: `৳${(roomTariffs.quad || 2500).toLocaleString()}/mo`, badge: 'Economy Shared' },
                   ].map((opt) => {
                     const isSelected = Number(registerData.preferredCapacity) === opt.capacity;
                     return (
@@ -893,7 +951,7 @@ export default function PortalLoginModal({
                   required
                 />
                 <span className="text-[11px] leading-tight">
-                  I agree to abide by the IUBAT Residential Hostel Code of Conduct, Disciplinary Rules, and 10:00 PM curfew policy.
+                  I agree to abide by the Residential Hostel Code of Conduct, Disciplinary Rules, and 10:00 PM curfew policy.
                 </span>
               </label>
 

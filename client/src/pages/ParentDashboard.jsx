@@ -31,7 +31,7 @@ import TargetedNoticesWidget from '../components/TargetedNoticesWidget';
 export default function ParentDashboard({ currentUser, onLogout, onShowToast }) {
   const [activeTab, setActiveTab] = useState(() => {
     try {
-      return localStorage.getItem('iubat_parent_tab') || 'attendance';
+      return localStorage.getItem('hostel_parent_tab') || 'attendance';
     } catch {
       return 'attendance';
     }
@@ -39,7 +39,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
   useEffect(() => {
     try {
-      localStorage.setItem('iubat_parent_tab', activeTab);
+      localStorage.setItem('hostel_parent_tab', activeTab);
     } catch (e) {
       console.error(e);
     }
@@ -50,7 +50,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
     name: currentUser?.guardianName || currentUser?.name || 'Md. Rafiqul Hasan',
     relationship: 'Father / Primary Registered Guardian',
     phone: currentUser?.guardianPhone || currentUser?.phone || '+880 1711 987654',
-    email: currentUser?.email || 'guardian@iubat.edu',
+    email: currentUser?.email || 'guardian@hostel.edu',
     smsAlertsEnabled: true,
   });
 
@@ -77,7 +77,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
         name: currentUser.guardianName || currentUser.name || (currentUser.wardName ? `Guardian of ${currentUser.wardName}` : 'Md. Rafiqul Hasan'),
         relationship: 'Father / Primary Registered Guardian',
         phone: currentUser.guardianPhone || currentUser.phone || '+880 1711 987654',
-        email: currentUser.email || 'guardian@iubat.edu',
+        email: currentUser.email || 'guardian@hostel.edu',
         smsAlertsEnabled: true,
       });
 
@@ -260,7 +260,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-              IUBAT Parent & Guardian Oversight Portal
+              Parent & Guardian Oversight Portal
             </span>
             <span className="ios-glass-pill text-[11px] font-bold px-3 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
               <Smartphone size={11} />
@@ -284,7 +284,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
 
           <button
             onClick={onLogout}
-            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
+            className="ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 hover:border-rose-600 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white dark:border-rose-900/50 dark:hover:border-rose-600 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:shadow-rose-600/20"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -911,7 +911,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                 Official Residential Hall & Emergency Hotlines
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Direct communication channels with IUBAT residential authorities and medical services.
+                Direct communication channels with residential hall authorities and medical services.
               </p>
             </div>
 
@@ -939,7 +939,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                   <div className="font-bold text-slate-900 dark:text-white">Office of the Provost (Hostel Super)</div>
                   <div className="text-slate-600 dark:text-slate-400 text-[11px]">Padma Residential Hall Administration</div>
                   <div className="text-blue-700 dark:text-blue-400 font-mono font-bold mt-1">+880 2 55091801 (Ext: 201)</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Email: provost@iubat.edu</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Email: provost@hostel.edu</div>
                 </div>
               </div>
 
@@ -949,7 +949,7 @@ export default function ParentDashboard({ currentUser, onLogout, onShowToast }) 
                   <ShieldCheck size={18} />
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900 dark:text-white">IUBAT 24/7 Campus Medical Center</div>
+                  <div className="font-bold text-slate-900 dark:text-white">24/7 Campus Medical Center</div>
                   <div className="text-slate-600 dark:text-slate-400 text-[11px]">Emergency First Aid & Ambulance Dispatch</div>
                   <div className="text-red-700 dark:text-red-400 font-mono font-bold mt-1">+880 1711 009988</div>
                   <div className="text-[10px] text-slate-400 mt-0.5">On-campus 24-hour doctor on duty</div>

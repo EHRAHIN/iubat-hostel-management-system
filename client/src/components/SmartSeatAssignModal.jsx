@@ -35,6 +35,35 @@ export default function SmartSeatAssignModal({
   const [errorMsg, setErrorMsg] = useState('');
   const [allocationResult, setAllocationResult] = useState(null);
 
+  const [tariffs, setTariffs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hostel_tariff_settings');
+      if (saved) {
+        const p = JSON.parse(saved);
+        return {
+          single: Number(p.singleRoomRentBDT) || 5500,
+          double: Number(p.doubleRoomRentBDT) || 3500,
+          quad: Number(p.quadRoomRentBDT) || 2500,
+        };
+      }
+    } catch (e) {}
+    return { single: 5500, double: 3500, quad: 2500 };
+  });
+
+  React.useEffect(() => {
+    const handleUpdated = (e) => {
+      if (e.detail?.singleRent || e.detail?.doubleRent || e.detail?.quadRent) {
+        setTariffs({
+          single: Number(e.detail.singleRent) || 5500,
+          double: Number(e.detail.doubleRent) || 3500,
+          quad: Number(e.detail.quadRent) || 2500,
+        });
+      }
+    };
+    window.addEventListener('hostel_tariffs_updated', handleUpdated);
+    return () => window.removeEventListener('hostel_tariffs_updated', handleUpdated);
+  }, []);
+
   // Preference State
   const [preferences, setPreferences] = useState({
     sleepSchedule: 'night-owl', // 'night-owl' | 'early-riser' | 'flexible'
@@ -453,9 +482,9 @@ export default function SmartSeatAssignModal({
                   </label>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {[
-                      { id: 'Double Shared Room', label: '👥 Double Shared', desc: '2 Beds (৳2,200/mo)' },
-                      { id: 'Single Deluxe Room', label: '👑 Single Deluxe', desc: '1 Bed (৳3,500/mo)' },
-                      { id: '4-Bed Standard Room', label: '🛏️ 4-Bed Room', desc: '4 Beds (৳1,400/mo)' },
+                      { id: 'Double Shared Room', label: '👥 Double Shared', desc: `2 Beds (৳${(tariffs.double || 3500).toLocaleString()}/mo)` },
+                      { id: 'Single Deluxe Room', label: '👑 Single Deluxe', desc: `1 Bed (৳${(tariffs.single || 5500).toLocaleString()}/mo)` },
+                      { id: '4-Bed Standard Room', label: '🛏️ 4-Bed Room', desc: `4 Beds (৳${(tariffs.quad || 2500).toLocaleString()}/mo)` },
                     ].map((opt) => (
                       <button
                         key={opt.id}

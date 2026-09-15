@@ -4,6 +4,7 @@ const {
   getRooms,
   createRoom,
   updateRoom,
+  updateRoomTariffs,
   deleteRoom,
   addBed,
   removeBed,
@@ -19,6 +20,7 @@ router.post('/transfer', transferStudentRoom);
 router.post('/transfer-requests', createTransferRequest);
 router.get('/transfer-requests', getTransferRequests);
 router.put('/transfer-requests/:id/review', reviewTransferRequest);
+router.put('/batch/tariffs', updateRoomTariffs);
 router.put('/:id', updateRoom);
 router.delete('/:id', deleteRoom);
 router.post('/:id/beds', addBed);

@@ -31,6 +31,7 @@ export default function StudentHistoryModal({
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [mealSummary, setMealSummary] = useState(null);
   const [payments, setPayments] = useState([]);
+  const [incidents, setIncidents] = useState([]);
   const [studentProfile, setStudentProfile] = useState(studentData || null);
 
   const cleanId = (studentId || studentData?.userId || studentData?.id || '').toString().trim();
@@ -42,11 +43,15 @@ export default function StudentHistoryModal({
       setLoading(true);
       try {
         // 1. Fetch Users / Profile if needed
+        let currentRoom = studentProfile?.room || studentData?.room || '';
         if (!studentProfile?.name || !studentProfile?.room) {
           const userRes = await api.getUsers({ role: 'student' });
           if (userRes?.data) {
             const found = userRes.data.find(u => u.userId === cleanId || u.id === cleanId);
-            if (found) setStudentProfile(found);
+            if (found) {
+              setStudentProfile(found);
+              currentRoom = found.room || currentRoom;
+            }
           }
         }
 
@@ -66,6 +71,12 @@ export default function StudentHistoryModal({
         const payRes = await api.getPayments({ studentId: cleanId });
         if (payRes?.data) {
           setPayments(payRes.data);
+        }
+
+        // 5. Fetch Disciplinary & Floor Teacher Complaints
+        const compRes = await api.getComplaints({ studentId: cleanId, room: currentRoom });
+        if (compRes?.data) {
+          setIncidents(compRes.data);
         }
       } catch (err) {
         console.error('Error fetching student full history modal details:', err);
@@ -178,6 +189,18 @@ export default function StudentHistoryModal({
             >
               <DollarSign size={14} />
               <span>Fee Invoices & Dues ({payments.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('incidents')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+                activeSubTab === 'incidents'
+                  ? 'bg-rose-500 text-white shadow-md font-bold'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <AlertCircle size={14} />
+              <span>Conduct & Demerits ({incidents.length})</span>
             </button>
           </div>
         </div>
@@ -407,12 +430,85 @@ export default function StudentHistoryModal({
             </div>
           )}
 
+          {/* TAB 5: FLOOR TEACHER CONDUCT & INCIDENTS */}
+          {activeSubTab === 'incidents' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <AlertCircle size={16} className="text-rose-500" />
+                    Floor Teacher Conduct & Demerit Reports
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Disciplinary observations, room inspection notes, and conduct records logged by Floor In-Charges.
+                  </p>
+                </div>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                  {incidents.length} Incident{incidents.length === 1 ? '' : 's'} On Record
+                </span>
+              </div>
+
+              {incidents.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                  <CheckCircle2 size={32} className="mx-auto text-emerald-500 mb-2 opacity-80" />
+                  <p className="font-bold text-slate-700 dark:text-slate-300">Clean Conduct Record</p>
+                  <p className="text-[11px] text-slate-400">No disciplinary issues or room infractions reported by Floor Teachers.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {incidents.map((inc) => (
+                    <div
+                      key={inc._id || inc.ticketId}
+                      className="p-4 rounded-2xl bg-rose-50/40 dark:bg-rose-950/10 border border-rose-200/70 dark:border-rose-900/40 space-y-2.5 transition-all shadow-sm"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500 text-white uppercase tracking-wider">
+                            {inc.incidentType || inc.category || 'Demerit / Conduct'}
+                          </span>
+                          <span className="font-mono text-[11px] text-slate-500 font-bold">
+                            #{inc.ticketId}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                          <Calendar size={12} />
+                          {inc.createdAt ? new Date(inc.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h5 className="font-bold text-slate-900 dark:text-white text-xs">{inc.title}</h5>
+                        <p className="text-slate-600 dark:text-slate-300 text-xs mt-1 leading-relaxed bg-white/60 dark:bg-slate-900/60 p-2.5 rounded-xl border border-rose-100 dark:border-rose-900/20">
+                          {inc.description}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-rose-200/50 dark:border-rose-900/30 text-[11px]">
+                        <div className="text-slate-500">
+                          Reported by: <span className="font-bold text-slate-800 dark:text-slate-200">{inc.reportedByName || 'Floor In-Charge'}</span> ({inc.reportedByRole || 'Floor Teacher'})
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400">Target Room: <strong className="text-slate-700 dark:text-slate-300">{inc.room}</strong></span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            inc.status === 'Resolved' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                          }`}>
+                            {inc.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
 
         {/* Footer */}
         <div className="p-4 bg-slate-50 dark:bg-[#060911] border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <span className="text-[11px] text-slate-500">
-            Official IUBAT Hall Directorate Residence Record
+            Official Hostel Hall Directorate Residence Record
           </span>
           <button
             onClick={onClose}

@@ -26,7 +26,7 @@ export default function GatePassQrModal({ isOpen, onClose, pass, student }) {
   const qrPayload = JSON.stringify({
     type: 'GATE_PASS',
     passId: pass.id || pass.passId || 'LP-2026-001',
-    qrCode: pass.gatePassCode || pass.qrPassCode || `IUBAT-QR-${pass.id || '9842'}`,
+    qrCode: pass.gatePassCode || pass.qrPassCode || `HSTL-QR-${pass.id || '9842'}`,
     studentId: student?.id || pass.studentId || '22203188',
     studentName: student?.name || pass.studentName || 'Emdadul Haque Rahin',
     hall: pass.hall || student?.hall || 'Padma Residential Hall (Male)',
@@ -44,11 +44,11 @@ export default function GatePassQrModal({ isOpen, onClose, pass, student }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
       <div className="w-full max-w-2xl bg-white dark:bg-[#0d121f] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden text-xs space-y-4">
         
-        {/* Header with IUBAT Colors */}
+        {/* Header with Institutional Colors */}
         <div className="p-5 pb-3 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-emerald-600/10 via-teal-600/5 to-transparent flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-emerald-700 text-white font-bold flex items-center justify-center text-sm shadow-md">
-              IUBAT
+              HSTL
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -161,7 +161,7 @@ export default function GatePassQrModal({ isOpen, onClose, pass, student }) {
           </div>
 
           <div className="text-center font-mono text-[10px] text-slate-400">
-            Security Gate Code: <span className="font-bold text-slate-700 dark:text-slate-300">{pass.gatePassCode || pass.qrPassCode || 'IUBAT-QR-8832'}</span>
+            Security Gate Code: <span className="font-bold text-slate-700 dark:text-slate-300">{pass.gatePassCode || pass.qrPassCode || 'HSTL-QR-8832'}</span>
           </div>
         </div>
 

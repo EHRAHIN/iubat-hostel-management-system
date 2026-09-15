@@ -181,12 +181,12 @@ main div.rounded-3xl.bg-white:hover {
 }
 
 .ios-glass-pill:hover {
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.85);
   transform: scale(1.02) translateZ(0);
 }
 
 .dark .ios-glass-pill:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.12);
   transform: scale(1.02) translateZ(0);
 }
 

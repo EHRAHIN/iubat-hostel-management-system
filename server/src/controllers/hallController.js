@@ -3,6 +3,7 @@ const Room = require('../models/Room');
 const User = require('../models/User');
 const Application = require('../models/Application');
 const RoomTransferRequest = require('../models/RoomTransferRequest');
+const Payment = require('../models/Payment');
 
 // @desc    Get all residential halls with stats
 // @route   GET /api/halls
@@ -159,26 +160,75 @@ exports.createRoom = async (req, res) => {
       });
     }
 
+    // STRICT ROOM CAPACITY VALIDATION (User Specification):
+    // 1. Single room: strictly 1 bed (cannot be made 2 or more)
+    // 2. Double bed room: strictly 2 beds (cannot be made 3 or more)
+    // 3. 4-Bed room: strictly 4 beds (cannot be made 5 or more)
+    const normalizedType = (roomType || '').toLowerCase();
+    let strictCapacity = 2;
+    let defaultRent = 3500;
+
+    const existingTypeRoom = await Room.findOne({
+      roomType: new RegExp(
+        normalizedType.includes('single') ? 'single' : normalizedType.includes('double') ? 'double' : '4-bed|quad',
+        'i'
+      ),
+    });
+
+    if (normalizedType.includes('single')) {
+      strictCapacity = 1;
+      defaultRent = existingTypeRoom?.monthlyRent || 5500;
+      if (capacity && Number(capacity) > 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Capacity Violation: Single Deluxe Room is strictly limited to 1 bed (cannot be double/2 or more).',
+        });
+      }
+    } else if (normalizedType.includes('double')) {
+      strictCapacity = 2;
+      defaultRent = existingTypeRoom?.monthlyRent || 3500;
+      if (capacity && Number(capacity) > 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Capacity Violation: Double Shared Room is strictly limited to 2 beds (cannot be made 3 or more).',
+        });
+      }
+    } else if (normalizedType.includes('4-bed') || normalizedType.includes('quad') || normalizedType.includes('four')) {
+      strictCapacity = 4;
+      defaultRent = existingTypeRoom?.monthlyRent || 2500;
+      if (capacity && Number(capacity) > 4) {
+        return res.status(400).json({
+          success: false,
+          message: 'Capacity Violation: 4-Bed Standard Room is strictly limited to 4 beds (cannot be made 5 or more).',
+        });
+      }
+    }
+
+    // Price change permission: Only admin can set a custom price different from the default tariff
+    const requesterRole = (req.body.userRole || req.body.role || req.headers['x-user-role'] || '').toLowerCase();
+    let finalRent = Number(monthlyRent) || defaultRent;
+    if (requesterRole && !['admin', 'superadmin', 'super_admin'].includes(requesterRole) && Number(monthlyRent) && Number(monthlyRent) !== defaultRent) {
+      // Non-admin (e.g. hostel super) must use standard official tariff
+      finalRent = defaultRent;
+    }
+
     // Determine default House Tutor
     const defaultTutor = cleanFloor === 2
       ? 'Prof. Anisur Rahman (Padma Floor 2 House Tutor)'
       : 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)';
 
-    // Build default beds if not provided
-    const bedCount = Number(capacity) || 2;
-    let finalBeds = beds;
-    if (!finalBeds || !Array.isArray(finalBeds) || finalBeds.length === 0) {
-      finalBeds = [];
-      for (let i = 0; i < bedCount; i++) {
-        const letter = String.fromCharCode(65 + i); // A, B, C, D...
-        finalBeds.push({
-          bedLabel: `Bed ${letter}`,
-          isOccupied: false,
-          studentId: null,
-          studentName: null,
-          studentDept: null,
-        });
-      }
+    // Build default beds according to strict capacity
+    const bedCount = strictCapacity;
+    let finalBeds = [];
+    for (let i = 0; i < bedCount; i++) {
+      const letter = String.fromCharCode(65 + i); // A, B, C, D...
+      finalBeds.push({
+        bedLabel: `Bed ${letter}`,
+        isOccupied: false,
+        studentId: null,
+        studentName: null,
+        studentDept: null,
+      });
     }
 
     const newRoom = await Room.create({
@@ -188,10 +238,10 @@ exports.createRoom = async (req, res) => {
       floor: cleanFloor,
       roomType,
       capacity: bedCount,
-      occupiedCount: finalBeds.filter((b) => b.isOccupied).length,
+      occupiedCount: 0,
       hasAC: Boolean(hasAC),
       hasBalcony: Boolean(hasBalcony),
-      monthlyRent: Number(monthlyRent) || 2200,
+      monthlyRent: finalRent,
       status,
       assignedHouseTutor: assignedHouseTutor || defaultTutor,
       beds: finalBeds,
@@ -199,7 +249,7 @@ exports.createRoom = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Room ${cleanRoomNo} successfully created on Floor ${cleanFloor}!`,
+      message: `Room ${cleanRoomNo} (${roomType} • ${bedCount} Bed) successfully created on Floor ${cleanFloor}!`,
       data: newRoom,
     });
   } catch (error) {
@@ -223,11 +273,49 @@ exports.updateRoom = async (req, res) => {
       assignedHouseTutor,
       roomNumber,
       floor,
+      capacity,
     } = req.body;
+
+    // Room Price Control: Only Super Admin can modify room price / monthly rent
+    if (monthlyRent !== undefined) {
+      const requesterRole = (req.body.userRole || req.body.role || req.headers['x-user-role'] || '').toLowerCase();
+      if (requesterRole && !['admin', 'superadmin', 'super_admin'].includes(requesterRole)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Permission Denied: Only Super Admin is authorized to change room prices/tariffs.',
+        });
+      }
+      room.monthlyRent = Number(monthlyRent);
+      // Synchronize any unpaid/due Seat Rent invoices for this room
+      await Payment.updateMany(
+        { room: new RegExp(room.roomNumber, 'i'), feeType: 'Seat Rent', status: 'Due' },
+        { $set: { amountBDT: Number(monthlyRent), payAbleAmount: Number(monthlyRent) } }
+      );
+    }
+
+    // Strict Capacity check on update
+    const activeType = (roomType || room.roomType || '').toLowerCase();
+    if (activeType.includes('single') && (Number(capacity) > 1 || room.beds.length > 1)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Capacity Violation: Single Deluxe Room is strictly limited to 1 bed (cannot be double/2).',
+      });
+    }
+    if (activeType.includes('double') && (Number(capacity) > 2 || room.beds.length > 2)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Capacity Violation: Double Shared Room is strictly limited to 2 beds (cannot be 3).',
+      });
+    }
+    if ((activeType.includes('4-bed') || activeType.includes('quad')) && (Number(capacity) > 4 || room.beds.length > 4)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Capacity Violation: 4-Bed Standard Room is strictly limited to 4 beds (cannot be 5).',
+      });
+    }
 
     if (status !== undefined) room.status = status;
     if (roomType !== undefined) room.roomType = roomType;
-    if (monthlyRent !== undefined) room.monthlyRent = Number(monthlyRent);
     if (hasAC !== undefined) room.hasAC = Boolean(hasAC);
     if (hasBalcony !== undefined) room.hasBalcony = Boolean(hasBalcony);
     if (assignedHouseTutor !== undefined) room.assignedHouseTutor = assignedHouseTutor;
@@ -245,6 +333,63 @@ exports.updateRoom = async (req, res) => {
     res.status(200).json({ success: true, message: `Room ${room.roomNumber} updated successfully.`, data: room });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Update room tariffs university-wide (Super Admin only)
+// @route   PUT /api/rooms/batch/tariffs
+exports.updateRoomTariffs = async (req, res) => {
+  try {
+    const { singleRent, doubleRent, quadRent, userRole } = req.body;
+    const role = (userRole || req.body.role || req.headers['x-user-role'] || '').toLowerCase();
+    if (role && !['admin', 'superadmin', 'super_admin'].includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Permission Denied: Only Super Admin is authorized to modify university room tariffs.',
+      });
+    }
+
+    const updates = [];
+    if (singleRent && Number(singleRent) > 0) {
+      updates.push(
+        Room.updateMany(
+          { roomType: /Single/i },
+          { $set: { monthlyRent: Number(singleRent) } }
+        )
+      );
+    }
+    if (doubleRent && Number(doubleRent) > 0) {
+      updates.push(
+        Room.updateMany(
+          { roomType: /Double/i },
+          { $set: { monthlyRent: Number(doubleRent) } }
+        )
+      );
+      // Synchronize any due Seat Rent invoices
+      updates.push(
+        Payment.updateMany(
+          { feeType: 'Seat Rent', status: 'Due' },
+          { $set: { amountBDT: Number(doubleRent), payAbleAmount: Number(doubleRent) } }
+        )
+      );
+    }
+    if (quadRent && Number(quadRent) > 0) {
+      updates.push(
+        Room.updateMany(
+          { roomType: /(4-Bed|Quad)/i },
+          { $set: { monthlyRent: Number(quadRent) } }
+        )
+      );
+    }
+
+    await Promise.all(updates);
+
+    res.status(200).json({
+      success: true,
+      message: 'Room tariffs successfully updated across all residential rooms and pending invoices!',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -301,6 +446,30 @@ exports.addBed = async (req, res) => {
   try {
     const room = await Room.findById(req.params.id);
     if (!room) return res.status(404).json({ success: false, message: 'Room not found' });
+
+    // STRICT CAPACITY LIMIT ENFORCEMENT:
+    // - Single room cannot be made 2 beds
+    // - Double room cannot be made 3 beds
+    // - 4-Bed room cannot be made 5 beds
+    const normalizedType = (room.roomType || '').toLowerCase();
+    if (normalizedType.includes('single') && room.beds.length >= 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Strict Capacity Limit: Single Deluxe Room is strictly limited to 1 bed. Additional beds cannot be added.',
+      });
+    }
+    if (normalizedType.includes('double') && room.beds.length >= 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Strict Capacity Limit: Double Shared Room is strictly limited to 2 beds. Cannot add a 3rd bed.',
+      });
+    }
+    if ((normalizedType.includes('4-bed') || normalizedType.includes('quad') || normalizedType.includes('four')) && room.beds.length >= 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'Strict Capacity Limit: 4-Bed Standard Room is strictly limited to 4 beds. Cannot add a 5th bed.',
+      });
+    }
 
     // Determine next bed label (e.g. Bed C, Bed D...)
     const existingLabels = room.beds.map((b) => b.bedLabel);

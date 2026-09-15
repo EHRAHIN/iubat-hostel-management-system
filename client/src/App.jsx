@@ -26,7 +26,7 @@ export default function App() {
   // Day / Night Theme State (Default to Light Mode, restored from localStorage)
   const [darkMode, setDarkMode] = useState(() => {
     try {
-      const savedTheme = localStorage.getItem('iubat_theme');
+      const savedTheme = localStorage.getItem('hostel_theme');
       if (savedTheme) return savedTheme === 'dark';
       return false;
     } catch {
@@ -37,9 +37,9 @@ export default function App() {
   // User and Role Session State (Per-tab session isolation via sessionStorage, with localStorage initial fallback)
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      const sessionSaved = sessionStorage.getItem('iubat_auth_user');
+      const sessionSaved = sessionStorage.getItem('hostel_auth_user');
       if (sessionSaved) return JSON.parse(sessionSaved);
-      const localSaved = localStorage.getItem('iubat_auth_user');
+      const localSaved = localStorage.getItem('hostel_auth_user');
       return localSaved ? JSON.parse(localSaved) : null;
     } catch {
       return null;
@@ -48,7 +48,11 @@ export default function App() {
 
   const [currentUserRole, setCurrentUserRole] = useState(() => {
     try {
-      return sessionStorage.getItem('iubat_auth_role') || localStorage.getItem('iubat_auth_role') || null;
+      return (
+        sessionStorage.getItem('hostel_auth_role') ||
+        localStorage.getItem('hostel_auth_role') ||
+        null
+      );
     } catch {
       return null;
     }
@@ -57,12 +61,12 @@ export default function App() {
   // View state: 'home', 'student-dashboard', 'teacher-dashboard', 'staff-dashboard', 'parent-dashboard', 'admin-dashboard', or 'super-dashboard'
   const [currentView, setCurrentView] = useState(() => {
     try {
-      const sessionView = sessionStorage.getItem('iubat_current_view');
-      const sessionUser = sessionStorage.getItem('iubat_auth_user');
+      const sessionView = sessionStorage.getItem('hostel_current_view');
+      const sessionUser = sessionStorage.getItem('hostel_auth_user');
       if (sessionView && sessionUser) return sessionView;
 
-      const localView = localStorage.getItem('iubat_current_view');
-      const localUser = localStorage.getItem('iubat_auth_user');
+      const localView = localStorage.getItem('hostel_current_view');
+      const localUser = localStorage.getItem('hostel_auth_user');
       if (localView && localUser) return localView;
 
       return 'home';
@@ -154,7 +158,7 @@ export default function App() {
       document.body.classList.remove('dark');
     }
     try {
-      localStorage.setItem('iubat_theme', darkMode ? 'dark' : 'light');
+      localStorage.setItem('hostel_theme', darkMode ? 'dark' : 'light');
     } catch (e) {
       console.error(e);
     }
@@ -164,9 +168,9 @@ export default function App() {
   useEffect(() => {
     try {
       if (currentUser) {
-        sessionStorage.setItem('iubat_auth_user', JSON.stringify(currentUser));
+        sessionStorage.setItem('hostel_auth_user', JSON.stringify(currentUser));
       } else {
-        sessionStorage.removeItem('iubat_auth_user');
+        sessionStorage.removeItem('hostel_auth_user');
       }
     } catch (e) {
       console.error(e);
@@ -176,9 +180,9 @@ export default function App() {
   useEffect(() => {
     try {
       if (currentUserRole) {
-        sessionStorage.setItem('iubat_auth_role', currentUserRole);
+        sessionStorage.setItem('hostel_auth_role', currentUserRole);
       } else {
-        sessionStorage.removeItem('iubat_auth_role');
+        sessionStorage.removeItem('hostel_auth_role');
       }
     } catch (e) {
       console.error(e);
@@ -187,7 +191,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem('iubat_current_view', currentView);
+      sessionStorage.setItem('hostel_current_view', currentView);
     } catch (e) {
       console.error(e);
     }
@@ -200,8 +204,8 @@ export default function App() {
       setCurrentView('home');
       setCurrentUserRole(null);
       try {
-        sessionStorage.setItem('iubat_current_view', 'home');
-        localStorage.setItem('iubat_current_view', 'home');
+        sessionStorage.setItem('hostel_current_view', 'home');
+        localStorage.setItem('hostel_current_view', 'home');
       } catch (e) {
         console.error(e);
       }
@@ -253,12 +257,12 @@ export default function App() {
     setCurrentUser(updatedUser);
     setCurrentView('student-dashboard');
     try {
-      sessionStorage.setItem('iubat_auth_user', JSON.stringify(updatedUser));
-      sessionStorage.setItem('iubat_auth_role', 'student');
-      sessionStorage.setItem('iubat_current_view', 'student-dashboard');
-      localStorage.setItem('iubat_auth_user', JSON.stringify(updatedUser));
-      localStorage.setItem('iubat_auth_role', 'student');
-      localStorage.setItem('iubat_current_view', 'student-dashboard');
+      sessionStorage.setItem('hostel_auth_user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('hostel_auth_role', 'student');
+      sessionStorage.setItem('hostel_current_view', 'student-dashboard');
+      localStorage.setItem('hostel_auth_user', JSON.stringify(updatedUser));
+      localStorage.setItem('hostel_auth_role', 'student');
+      localStorage.setItem('hostel_current_view', 'student-dashboard');
     } catch (e) {
       console.error(e);
     }
@@ -270,10 +274,10 @@ export default function App() {
     setCurrentUser(user);
     try {
       // Save to both sessionStorage (per-tab) and localStorage (cross-tab fallback)
-      sessionStorage.setItem('iubat_auth_user', JSON.stringify(user));
-      sessionStorage.setItem('iubat_auth_role', role);
-      localStorage.setItem('iubat_auth_user', JSON.stringify(user));
-      localStorage.setItem('iubat_auth_role', role);
+      sessionStorage.setItem('hostel_auth_user', JSON.stringify(user));
+      sessionStorage.setItem('hostel_auth_role', role);
+      localStorage.setItem('hostel_auth_user', JSON.stringify(user));
+      localStorage.setItem('hostel_auth_role', role);
     } catch (e) {
       console.error(e);
     }
@@ -302,8 +306,8 @@ export default function App() {
     }
     setCurrentView(targetView);
     try {
-      sessionStorage.setItem('iubat_current_view', targetView);
-      localStorage.setItem('iubat_current_view', targetView);
+      sessionStorage.setItem('hostel_current_view', targetView);
+      localStorage.setItem('hostel_current_view', targetView);
     } catch (e) {
       console.error(e);
     }
@@ -314,19 +318,19 @@ export default function App() {
     setCurrentUser(null);
     setCurrentView('home');
     try {
-      sessionStorage.removeItem('iubat_auth_user');
-      sessionStorage.removeItem('iubat_auth_role');
-      sessionStorage.setItem('iubat_current_view', 'home');
-      sessionStorage.removeItem('iubat_student_tab');
-      sessionStorage.removeItem('iubat_teacher_tab');
-      sessionStorage.removeItem('iubat_provost_tab');
-      sessionStorage.removeItem('iubat_staff_tab');
-      sessionStorage.removeItem('iubat_parent_tab');
-      sessionStorage.removeItem('iubat_admin_tab');
+      sessionStorage.removeItem('hostel_auth_user');
+      sessionStorage.removeItem('hostel_auth_role');
+      sessionStorage.setItem('hostel_current_view', 'home');
+      sessionStorage.removeItem('hostel_student_tab');
+      sessionStorage.removeItem('hostel_teacher_tab');
+      sessionStorage.removeItem('hostel_provost_tab');
+      sessionStorage.removeItem('hostel_staff_tab');
+      sessionStorage.removeItem('hostel_parent_tab');
+      sessionStorage.removeItem('hostel_admin_tab');
       // Also clear localStorage so it doesn't resurrect on new tabs if logged out
-      localStorage.removeItem('iubat_auth_user');
-      localStorage.removeItem('iubat_auth_role');
-      localStorage.setItem('iubat_current_view', 'home');
+      localStorage.removeItem('hostel_auth_user');
+      localStorage.removeItem('hostel_auth_role');
+      localStorage.setItem('hostel_current_view', 'home');
     } catch (e) {
       console.error(e);
     }
@@ -356,7 +360,7 @@ export default function App() {
       case 'parent-dashboard':
         return { main: 'Parent', sub: 'Guardian Portal' };
       default:
-        return { main: 'IUBAT', sub: 'ESTD 1991' };
+        return { main: 'HOSTEL', sub: 'SEAT ALLOCATION' };
     }
   };
 
@@ -377,13 +381,13 @@ export default function App() {
         {/* Dynamic Page Name Watermark ("Jolchap") */}
         <div 
           key={watermark.main}
-          className="absolute -right-4 sm:right-6 md:right-12 lg:right-16 bottom-6 md:bottom-12 opacity-[0.045] dark:opacity-[0.065] pointer-events-none select-none text-right font-serif font-black text-6xl sm:text-[110px] md:text-[160px] lg:text-[220px] leading-none text-emerald-950 dark:text-emerald-300 tracking-tighter uppercase transition-all duration-700"
+          className="absolute right-4 sm:right-8 md:right-12 bottom-6 md:bottom-8 opacity-[0.035] dark:opacity-[0.05] pointer-events-none select-none text-right font-serif font-black text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-tight text-emerald-950 dark:text-emerald-300 tracking-tight uppercase transition-all duration-700"
         >
           {watermark.main}
         </div>
         <div 
           key={watermark.sub}
-          className="absolute left-4 sm:left-8 top-20 sm:top-24 opacity-[0.02] dark:opacity-[0.035] pointer-events-none select-none font-serif font-black text-2xl sm:text-4xl md:text-5xl tracking-widest text-slate-900 dark:text-white uppercase transition-all duration-700"
+          className="absolute left-4 sm:left-8 top-20 sm:top-24 opacity-[0.02] dark:opacity-[0.03] pointer-events-none select-none font-serif font-bold text-xs sm:text-sm md:text-base tracking-widest text-slate-900 dark:text-white uppercase transition-all duration-700"
         >
           {watermark.sub}
         </div>
@@ -415,7 +419,7 @@ export default function App() {
             {currentView === 'home' && (
           <>
 
-            {/* 1. IUBAT Hero Section with Student Verification Terminal */}
+            {/* 1. Hero Section with Student Verification Terminal */}
             <HeroSection
               rooms={rooms}
               onOpenApplyModal={() => handleOpenApply()}
@@ -461,7 +465,7 @@ export default function App() {
                 id: '221004128',
                 userId: '221004128',
                 name: 'Tanvir Hasan',
-                email: 'student.cse@iubat.edu',
+                email: 'student.cse@hostel.edu',
                 role: 'student',
                 department: 'Computer Science and Engineering (CSE)',
                 cgpa: 3.82,

@@ -4,11 +4,16 @@ const Complaint = require('../models/Complaint');
 // @route   GET /api/complaints
 exports.getComplaints = async (req, res) => {
   try {
-    const { hall, floor, category, priority, status, studentId, assignedStaffId, tutorStatus, search } = req.query;
+    const { hall, floor, room, category, priority, status, studentId, targetStudentId, isTeacherComplaint, assignedStaffId, tutorStatus, search } = req.query;
     const query = {};
 
     if (hall && hall !== 'all') query.hall = hall;
     if (floor && floor !== 'all') query.floor = floor;
+    if (room && room !== 'all') query.room = room;
+    if (isTeacherComplaint !== undefined && isTeacherComplaint !== 'all') {
+      query.isTeacherComplaint = isTeacherComplaint === 'true';
+    }
+
     if (category && category !== 'all') {
       const catLower = category.toLowerCase();
       if (catLower.includes('electr')) {
@@ -26,17 +31,34 @@ exports.getComplaints = async (req, res) => {
     if (priority && priority !== 'all') query.priority = priority;
     if (status && status !== 'all') query.status = status;
     if (tutorStatus && tutorStatus !== 'all') query.tutorStatus = tutorStatus;
-    if (studentId) query.studentId = studentId;
     if (assignedStaffId) query.assignedStaffId = assignedStaffId;
 
-    if (search) {
+    // If querying for a specific student's record / history: match reports filed by student OR teacher complaints against the student / room
+    if (studentId) {
       query.$or = [
+        { studentId: studentId },
+        { targetStudentId: studentId },
+        ...(room ? [{ room: room, isTeacherComplaint: true }] : []),
+      ];
+    } else if (targetStudentId) {
+      query.targetStudentId = targetStudentId;
+    }
+
+    if (search) {
+      const sOr = [
         { ticketId: { $regex: search, $options: 'i' } },
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
         { room: { $regex: search, $options: 'i' } },
         { studentName: { $regex: search, $options: 'i' } },
+        { targetStudentName: { $regex: search, $options: 'i' } },
       ];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: sOr }];
+        delete query.$or;
+      } else {
+        query.$or = sOr;
+      }
     }
 
     const complaints = await Complaint.find(query).sort({ createdAt: -1 });
@@ -46,20 +68,38 @@ exports.getComplaints = async (req, res) => {
   }
 };
 
-// @desc    STEP 1: Student submits a maintenance problem
+// @desc    STEP 1: Student submits a maintenance problem OR Floor Teacher logs a conduct/disciplinary report
 // @route   POST /api/complaints
 exports.createComplaint = async (req, res) => {
   try {
-    const { studentId, studentName, hall, floor, room, category, priority, title, description } = req.body;
+    const {
+      studentId,
+      studentName,
+      hall,
+      floor,
+      room,
+      category,
+      priority,
+      title,
+      description,
+      isTeacherComplaint,
+      incidentType,
+      reportedByRole,
+      reportedByName,
+      targetStudentId,
+      targetStudentName,
+    } = req.body;
 
     if (!title || !description) {
       return res.status(400).json({ success: false, message: 'Title and Description are required' });
     }
 
-    const ticketId = `WRK-2026-${Math.floor(100 + Math.random() * 900)}`;
+    const isTeacher = Boolean(isTeacherComplaint || reportedByRole === 'Floor Teacher');
+    const ticketPrefix = isTeacher ? 'INC' : 'WRK';
+    const ticketId = `${ticketPrefix}-2026-${Math.floor(100 + Math.random() * 900)}`;
 
     // Normalize category
-    let cleanCategory = category || 'Electrical';
+    let cleanCategory = category || (isTeacher ? 'General' : 'Electrical');
     const catLower = cleanCategory.toLowerCase();
     if (catLower.includes('electr')) cleanCategory = 'Electrical';
     else if (catLower.includes('net') || catLower.includes('wi-fi') || catLower.includes('internet')) cleanCategory = 'Network';
@@ -68,23 +108,31 @@ exports.createComplaint = async (req, res) => {
 
     const complaint = await Complaint.create({
       ticketId,
-      studentId: studentId || '221004128',
-      studentName: studentName || 'Resident Student',
+      studentId: targetStudentId || studentId || '221004128',
+      studentName: targetStudentName || studentName || 'Resident Student',
       hall: hall || 'Padma Residential Hall (Male)',
       floor: floor || 'Floor 1',
       room: room || 'Room 104',
       category: cleanCategory,
-      priority: priority || 'Normal',
+      priority: priority || (isTeacher ? 'High' : 'Normal'),
       title: title.trim(),
       description: description.trim(),
-      status: 'Pending Floor Teacher Verification',
-      tutorStatus: 'Pending Verification',
-      assignedStaff: 'Pending Provost Assignment',
+      status: isTeacher ? 'Incident Logged by Floor Teacher • Active Conduct Demerit' : 'Pending Floor Teacher Verification',
+      tutorStatus: isTeacher ? 'Verified Conduct Incident' : 'Pending Verification',
+      assignedStaff: isTeacher ? 'Provost Disciplinary Board' : 'Pending Provost Assignment',
+      isTeacherComplaint: isTeacher,
+      incidentType: incidentType || (isTeacher ? 'Disciplinary Incident' : 'Maintenance Issue'),
+      reportedByRole: reportedByRole || (isTeacher ? 'Floor Teacher' : 'Student'),
+      reportedByName: reportedByName || (isTeacher ? 'House Tutor' : studentName || 'Student Resident'),
+      targetStudentId: targetStudentId || studentId || '',
+      targetStudentName: targetStudentName || studentName || '',
     });
 
     res.status(201).json({
       success: true,
-      message: `Maintenance ticket #${complaint.ticketId} submitted. Dispatched to Floor Teacher for inspection.`,
+      message: isTeacher
+        ? `Disciplinary Incident Report #${complaint.ticketId} logged against ${room || 'Room'} / ${targetStudentName || studentName || 'Student'}!`
+        : `Maintenance ticket #${complaint.ticketId} submitted. Dispatched to Floor Teacher for inspection.`,
       data: complaint,
     });
   } catch (error) {
@@ -162,13 +210,23 @@ exports.assignComplaintByProvost = async (req, res) => {
 // @route   PUT /api/complaints/:id/status
 exports.updateComplaintStatus = async (req, res) => {
   try {
-    const { status, resolutionNotes } = req.body; // 'In Progress' | 'Resolved and Verified'
+    const { status, resolutionNotes, progressPercent, staffNotes, estimatedCompletion } = req.body;
 
-    const updateData = { status };
+    const updateData = {};
+    if (status) updateData.status = status;
     if (resolutionNotes) updateData.resolutionNotes = resolutionNotes;
-    if (status === 'Resolved and Verified' || status === 'Resolved') {
+    if (staffNotes !== undefined) updateData.staffNotes = staffNotes;
+    if (estimatedCompletion !== undefined) updateData.estimatedCompletion = estimatedCompletion;
+    if (progressPercent !== undefined) {
+      updateData.progressPercent = Math.min(100, Math.max(0, Number(progressPercent)));
+    }
+
+    if (status === 'Resolved and Verified' || status === 'Resolved' || Number(progressPercent) === 100) {
       updateData.resolvedAt = new Date();
       updateData.status = 'Resolved and Verified';
+      updateData.progressPercent = 100;
+    } else if (Number(progressPercent) > 0 && !updateData.workStartedAt) {
+      updateData.workStartedAt = new Date();
     }
 
     const complaint = await Complaint.findOneAndUpdate(
@@ -181,7 +239,51 @@ exports.updateComplaintStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Ticket #${complaint.ticketId} status updated to: ${complaint.status}`,
+      message: `Ticket #${complaint.ticketId} status updated to: ${complaint.status} (${complaint.progressPercent || 0}%)`,
+      data: complaint,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    STEP 5: Maintenance Staff updates live progress (% completion, crew notes, ETA)
+// @route   PUT /api/complaints/:id/progress
+exports.updateComplaintProgress = async (req, res) => {
+  try {
+    const { progressPercent, status, staffNotes, estimatedCompletion, resolutionNotes } = req.body;
+
+    const updateData = {};
+    if (progressPercent !== undefined) {
+      updateData.progressPercent = Math.min(100, Math.max(0, Number(progressPercent)));
+    }
+    if (staffNotes !== undefined) updateData.staffNotes = staffNotes;
+    if (estimatedCompletion !== undefined) updateData.estimatedCompletion = estimatedCompletion;
+    if (resolutionNotes) updateData.resolutionNotes = resolutionNotes;
+
+    const pct = Number(progressPercent);
+    if (pct >= 100 || status === 'Resolved and Verified' || status === 'Resolved') {
+      updateData.status = 'Resolved and Verified';
+      updateData.progressPercent = 100;
+      updateData.resolvedAt = new Date();
+    } else if (pct > 0) {
+      updateData.status = status || `In Progress (${pct}% Complete)`;
+      if (!updateData.workStartedAt) updateData.workStartedAt = new Date();
+    } else if (status) {
+      updateData.status = status;
+    }
+
+    const complaint = await Complaint.findOneAndUpdate(
+      { $or: [{ _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null }, { ticketId: req.params.id }] },
+      updateData,
+      { new: true }
+    );
+
+    if (!complaint) return res.status(404).json({ success: false, message: 'Ticket not found' });
+
+    res.status(200).json({
+      success: true,
+      message: `Work progress for Ticket #${complaint.ticketId} updated to ${complaint.progressPercent}% (${complaint.status})!`,
       data: complaint,
     });
   } catch (error) {

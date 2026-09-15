@@ -93,7 +93,7 @@ exports.register = async (req, res) => {
     });
 
     // Automatically create a pending seat application in MongoDB for the Hostel Super / Provost Desk
-    const randomRef = `#IUBAT-APP-${Math.floor(1000 + Math.random() * 9000)}`;
+    const randomRef = `#HSTL-APP-${Math.floor(1000 + Math.random() * 9000)}`;
     const application = await Application.create({
       applicationRef: randomRef,
       fullName: name.trim(),
@@ -165,26 +165,26 @@ exports.login = async (req, res) => {
 
     // Specific alias mapping for convenience shortcuts
     let effectiveKey = searchKey;
-    if (['student', 'student@iubat.edu', 'tanvir', 'tanvir hasan', 'demo-student', 'student.cse@iubat.edu', '221004128'].includes(lowerKey)) {
-      effectiveKey = 'student.cse@iubat.edu';
+    if (['student', 'student@hostel.edu', 'tanvir', 'tanvir hasan', 'demo-student', 'student.cse@hostel.edu', '221004128'].includes(lowerKey)) {
+      effectiveKey = 'student.cse@hostel.edu';
       targetRole = 'student';
-    } else if (['hostelsuper', 'hostel_super', 'super', 'provost', 'superadmin_provost', 'hostel-super'].includes(lowerKey)) {
-      effectiveKey = 'provost@iubat.edu';
+    } else if (['hostelsuper', 'hostel_super', 'super', 'provost', 'superadmin_provost', 'hostel-super', 'provost@hostel.edu'].includes(lowerKey)) {
+      effectiveKey = 'provost@hostel.edu';
       targetRole = 'super';
-    } else if (['admin', 'superadmin', 'super_admin', 'root', 'rootit', 'super-admin', 'itadmin'].includes(lowerKey)) {
-      effectiveKey = 'admin.it@iubat.edu';
+    } else if (['admin', 'superadmin', 'super_admin', 'root', 'rootit', 'super-admin', 'itadmin', 'admin.it@hostel.edu'].includes(lowerKey)) {
+      effectiveKey = 'admin.it@hostel.edu';
       targetRole = 'admin';
-    } else if (['tutor1', 'padma-tutor1', 'padma-tutor', 'floorteacher@iubat.edu', 'floorteacher', 'tutor', 'tutor@iubat.edu'].includes(lowerKey)) {
-      effectiveKey = 'tutor.padma1@iubat.edu';
+    } else if (['tutor1', 'padma-tutor1', 'padma-tutor', 'floorteacher@hostel.edu', 'floorteacher', 'tutor', 'tutor@hostel.edu'].includes(lowerKey)) {
+      effectiveKey = 'tutor.padma1@hostel.edu';
       targetRole = 'teacher';
-    } else if (['tutor2', 'padma-tutor2', 'anisur'].includes(lowerKey)) {
-      effectiveKey = 'tutor.padma2@iubat.edu';
+    } else if (['tutor2', 'padma-tutor2', 'anisur', 'tutor.padma2@hostel.edu'].includes(lowerKey)) {
+      effectiveKey = 'tutor.padma2@hostel.edu';
       targetRole = 'teacher';
-    } else if (['padma-maintenance', 'maintenance@iubat.edu', 'maintenance', 'staff-maintenance'].includes(lowerKey)) {
-      effectiveKey = 'maintenance.padma@iubat.edu';
+    } else if (['padma-maintenance', 'maintenance@hostel.edu', 'maintenance', 'staff-maintenance'].includes(lowerKey)) {
+      effectiveKey = 'maintenance.padma@hostel.edu';
       targetRole = 'staff';
-    } else if (['padma-dining', 'dining@iubat.edu', 'dining', 'mess', 'staff-dining'].includes(lowerKey)) {
-      effectiveKey = 'dining.padma@iubat.edu';
+    } else if (['padma-dining', 'dining@hostel.edu', 'dining', 'mess', 'staff-dining'].includes(lowerKey)) {
+      effectiveKey = 'dining.padma@hostel.edu';
       targetRole = 'staff';
     }
 
@@ -204,15 +204,6 @@ exports.login = async (req, res) => {
           { guardianPhone: cleanRegex },
         ],
       });
-
-      if (!student) {
-        student = await User.findOne({
-          $or: [
-            { userId: new RegExp(cleanKey, 'i') },
-            { email: new RegExp(cleanKey, 'i') },
-          ],
-        });
-      }
 
       if (!student) {
         return res.status(404).json({
@@ -255,31 +246,30 @@ exports.login = async (req, res) => {
     }
 
     // Standard login for other roles (Student, Floor Teacher, Hostel Super, Staff, Super Admin)
-    let user = await User.findOne({
-      $or: [
-        { email: searchRegex },
-        { userId: searchRegex },
-      ],
-    });
+    const findConditions = [
+      { email: searchRegex },
+      { userId: searchRegex },
+    ];
+
+    let user = await User.findOne({ $or: findConditions });
 
     if (!user) {
-      user = await User.findOne({
-        $or: [
-          { email: new RegExp(searchKey, 'i') },
-          { userId: new RegExp(searchKey, 'i') },
-        ],
-      });
+      const fallbackConditions = [
+        { email: new RegExp(searchKey, 'i') },
+        { userId: new RegExp(searchKey, 'i') },
+      ];
+      user = await User.findOne({ $or: fallbackConditions });
     }
 
     // Auto-provision standard institutional accounts if missing
     if (!user) {
       if (lowerKey.includes('dining')) {
         user = await User.findOneAndUpdate(
-          { email: 'dining.padma@iubat.edu' },
+          { email: 'dining.padma@hostel.edu' },
           {
             userId: 'STF-DIN-PAD-001',
             name: 'Md. Faruk Hossain',
-            email: 'dining.padma@iubat.edu',
+            email: 'dining.padma@hostel.edu',
             password: '123456',
             role: 'staff',
             department: 'Padma Hall Dining Staff (Daily Bazar, Kitchen & Meal Token Approval)',
@@ -293,11 +283,11 @@ exports.login = async (req, res) => {
         );
       } else if (lowerKey.includes('maintenance')) {
         user = await User.findOneAndUpdate(
-          { email: 'maintenance.padma@iubat.edu' },
+          { email: 'maintenance.padma@hostel.edu' },
           {
             userId: 'STF-MNT-PAD-001',
             name: 'Md. Kalam Hossain',
-            email: 'maintenance.padma@iubat.edu',
+            email: 'maintenance.padma@hostel.edu',
             password: '123456',
             role: 'staff',
             department: 'Padma Hall Maintenance Staff (Electricity, Net, Plumbing, Furniture)',
@@ -311,11 +301,11 @@ exports.login = async (req, res) => {
         );
       } else if (lowerKey.includes('tutor.padma2') || lowerKey.includes('anisur') || lowerKey.includes('tutor2')) {
         user = await User.findOneAndUpdate(
-          { email: 'tutor.padma2@iubat.edu' },
+          { email: 'tutor.padma2@hostel.edu' },
           {
             userId: 'TUT-PAD-002',
             name: 'Prof. Anisur Rahman',
-            email: 'tutor.padma2@iubat.edu',
+            email: 'tutor.padma2@hostel.edu',
             password: '123456',
             role: 'teacher',
             department: 'Department of Electrical & Electronic Engineering (EEE)',
@@ -329,11 +319,11 @@ exports.login = async (req, res) => {
         );
       } else if (lowerKey.includes('tutor') || lowerKey.includes('floorteacher') || lowerKey.includes('tariqul')) {
         user = await User.findOneAndUpdate(
-          { email: 'tutor.padma1@iubat.edu' },
+          { email: 'tutor.padma1@hostel.edu' },
           {
             userId: 'TUT-PAD-001',
             name: 'Dr. Tariqul Islam',
-            email: 'tutor.padma1@iubat.edu',
+            email: 'tutor.padma1@hostel.edu',
             password: '123456',
             role: 'teacher',
             department: 'Department of Computer Science & Engineering (CSE)',
@@ -345,6 +335,72 @@ exports.login = async (req, res) => {
           },
           { upsert: true, new: true }
         );
+      } else if (lowerKey.includes('provost') || lowerKey.includes('hostelsuper') || lowerKey.includes('super')) {
+        user = await User.findOneAndUpdate(
+          { email: 'provost@hostel.edu' },
+          {
+            userId: 'PRV-001',
+            name: 'Prof. Dr. Monirul Islam',
+            email: 'provost@hostel.edu',
+            password: '123456',
+            role: 'super',
+            department: 'Academic Administration',
+            phone: '+880 1710 000001',
+            unit: 'Office of the Provost (All Residential Halls)',
+            status: 'Active',
+          },
+          { upsert: true, new: true }
+        );
+      } else if (lowerKey.includes('admin') || lowerKey.includes('root')) {
+        user = await User.findOneAndUpdate(
+          { email: 'admin.it@hostel.edu' },
+          {
+            userId: 'ADM-HSTL-001',
+            name: 'Engr. Mahbubur Rahman',
+            email: 'admin.it@hostel.edu',
+            password: '123456',
+            role: 'admin',
+            department: 'Central IT & Infrastructure Division',
+            phone: '+880 1713 998877',
+            unit: 'Central IT & Server Infrastructure',
+            status: 'Active',
+          },
+          { upsert: true, new: true }
+        );
+      } else if (lowerKey.includes('student') || lowerKey.includes('tanvir') || lowerKey.includes('221004128')) {
+        user = await User.findOneAndUpdate(
+          { email: 'student.cse@hostel.edu' },
+          {
+            userId: '221004128',
+            name: 'Tanvir Hasan',
+            email: 'student.cse@hostel.edu',
+            password: '123456',
+            role: 'student',
+            department: 'CSE',
+            cgpa: 3.84,
+            phone: '+880 1712 345678',
+            hall: 'Padma Residential Hall (Male)',
+            floor: 'Floor 1',
+            room: 'Room 104',
+            seatNo: 'Bed B',
+            status: 'Active',
+            guardianName: 'Md. Rafiqul Hasan',
+            guardianPhone: '+880 1711 987654',
+            floorTeacher: 'Dr. Tariqul Islam (Padma Floor 1 House Tutor)',
+            floorTeacherPhone: '+880 1819 123456',
+            unit: 'Padma Hall Floor 1, Room 104 (Bed B)',
+          },
+          { upsert: true, new: true }
+        );
+      }
+    }
+
+    if (!user && effectiveKey.includes('@')) {
+      const emailPrefix = effectiveKey.split('@')[0];
+      user = await User.findOne({ email: new RegExp('^' + emailPrefix + '@', 'i') });
+      if (user) {
+        user.email = effectiveKey;
+        await user.save();
       }
     }
 

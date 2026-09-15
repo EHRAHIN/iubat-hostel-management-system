@@ -19,12 +19,12 @@ export default class ErrorBoundary extends React.Component {
     this.setState({ hasError: false, error: null, errorInfo: null });
     // Clear storage to prevent stale session loops
     try {
-      sessionStorage.removeItem('iubat_current_view');
-      sessionStorage.removeItem('iubat_auth_user');
-      sessionStorage.removeItem('iubat_auth_role');
-      localStorage.setItem('iubat_current_view', 'home');
-      localStorage.removeItem('iubat_auth_user');
-      localStorage.removeItem('iubat_auth_role');
+      sessionStorage.removeItem('hostel_current_view');
+      sessionStorage.removeItem('hostel_auth_user');
+      sessionStorage.removeItem('hostel_auth_role');
+      localStorage.setItem('hostel_current_view', 'home');
+      localStorage.removeItem('hostel_auth_user');
+      localStorage.removeItem('hostel_auth_role');
     } catch (e) {
       console.error(e);
     }

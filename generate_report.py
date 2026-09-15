@@ -158,7 +158,7 @@ def generate_10_chapter_practicum_report():
     doc.add_paragraph().paragraph_format.space_before = Pt(40)
     
     add_title(
-        "Development of IUBAT Hostel Seat Management System\nfor Agnos Group LTD.",
+        "Development of Hostel Seat Allocation Management System\nfor Agnos Group LTD.",
         size=18, space_after=60, align=WD_ALIGN_PARAGRAPH.CENTER, bold=True
     )
 
@@ -185,8 +185,8 @@ def generate_10_chapter_practicum_report():
     p_dept.paragraph_format.space_after = Pt(28)
     r = p_dept.add_run(
         "Department of Computer Science and Engineering\n"
-        "IUBAT School of Computer Science and Engineering\n"
-        "IUBAT—International University of Business Agriculture and Technology"
+        "School of Computer Science and Engineering\n"
+        "International University of Business Agriculture and Technology"
     )
     r.font.size = Pt(12)
     r.bold = True
@@ -203,7 +203,7 @@ def generate_10_chapter_practicum_report():
     # PAGE 2: EXAMINATION & APPROVAL PAGE
     # =========================================================================
     add_title(
-        "Development of IUBAT Hostel Seat Management System",
+        "Development of Hostel Seat Allocation Management System",
         size=16, space_after=18, align=WD_ALIGN_PARAGRAPH.CENTER, bold=True
     )
 
@@ -235,8 +235,8 @@ def generate_10_chapter_practicum_report():
     p_inst.paragraph_format.space_before = Pt(18)
     p_inst.add_run(
         "Department of Computer Science and Engineering\n"
-        "IUBAT School of Computer Science and Engineering\n"
-        "IUBAT—International University of Business Agriculture and Technology\n\n"
+        "School of Computer Science and Engineering\n"
+        "International University of Business Agriculture and Technology\n\n"
         "Spring 2026"
     ).bold = True
 
@@ -256,7 +256,7 @@ def generate_10_chapter_practicum_report():
         "The Chair\n"
         "Practicum Defense Committee\n"
         "Department of Computer Science and Engineering\n"
-        "IUBAT—International University of Business Agriculture and Technology\n"
+        "International University of Business Agriculture and Technology\n"
         "4 Embankment Drive Road, Sector 10, Uttara Model Town\n"
         "Dhaka 1230, Bangladesh."
     )
@@ -267,7 +267,7 @@ def generate_10_chapter_practicum_report():
 
     add_body("Dear Sir,")
     add_body(
-        "I am submitting my practicum report titled “Development of IUBAT Hostel Seat Management System for Agnos Group LTD.” for your evaluation."
+        "I am submitting my practicum report titled “Development of Hostel Seat Allocation Management System for Agnos Group LTD.” for your evaluation."
     )
     add_body(
         "This project allowed me to translate academic concepts into a functional system while developing a clearer understanding of real-world application and problem-solving. It has been a significant step in strengthening my technical and analytical skills in full-stack web engineering, database design, and institutional workflow automation."
@@ -294,8 +294,8 @@ def generate_10_chapter_practicum_report():
         "Agnos Group LTD.\n"
         "Date: 15th June 2026\n\n"
         "To Whom It May Concern\n\n"
-        "This is to certify that, Emdadul Haque Rahin, Student ID: 22203188, student of Bachelor of Science in Computer Science and Engineering (BCSE) at IUBAT—International University of Business Agriculture and Technology, has successfully worked at Agnos Group LTD. as an \"Intern - Software Engineer\" in the Department of Software Development from 17th February 2026 to 14th June 2026.\n\n"
-        "During his internship, he was actively involved in the design, development, and implementation of the project \"IUBAT Hostel Seat Management System\". We have found him very hardworking, punctual, and reliable with a professional attitude in his service.\n\n"
+        "This is to certify that, Emdadul Haque Rahin, Student ID: 22203188, student of Bachelor of Science in Computer Science and Engineering (BCSE) at International University of Business Agriculture and Technology, has successfully worked at Agnos Group LTD. as an \"Intern - Software Engineer\" in the Department of Software Development from 17th February 2026 to 14th June 2026.\n\n"
+        "During his internship, he was actively involved in the design, development, and implementation of the project \"Hostel Seat Allocation Management System\". We have found him very hardworking, punctual, and reliable with a professional attitude in his service.\n\n"
         "We are sure about his capabilities in software engineering and wish him every success in his future endeavors.\n\n"
         "On behalf of Agnos Group LTD.\n\n"
         "_________________________\n"
@@ -316,7 +316,7 @@ def generate_10_chapter_practicum_report():
     add_title("Student’s Declaration", size=16, space_after=24)
 
     add_body(
-        "This document certify that the work is presented in this report, titled “Development of IUBAT Hostel Seat Management System”, is the outcome of research and investigation carried out by the undersigned student, under the guidance of S M Rifatur Rana, Lecturer in the Department of Computer Science and Engineering at the International University of Business Agriculture and Technology."
+        "This document certify that the work is presented in this report, titled “Development of Hostel Seat Allocation Management System”, is the outcome of research and investigation carried out by the undersigned student, under the guidance of S M Rifatur Rana, Lecturer in the Department of Computer Science and Engineering at the International University of Business Agriculture and Technology."
     )
 
     doc.add_paragraph().paragraph_format.space_before = Pt(48)
@@ -336,7 +336,7 @@ def generate_10_chapter_practicum_report():
     add_title("Supervisor’s Certification", size=16, space_after=24)
 
     add_body(
-        "The practicum report titled “Development of IUBAT Hostel Seat Management System” has been submitted by Emdadul Haque Rahin, ID# 22203188 in partial fulfillment of the requirements for the degree of Bachelor of Science in Computer Science and Engineering in May 2026."
+        "The practicum report titled “Development of Hostel Seat Allocation Management System” has been submitted by Emdadul Haque Rahin, ID# 22203188 in partial fulfillment of the requirements for the degree of Bachelor of Science in Computer Science and Engineering in May 2026."
     )
     add_body(
         "The report has been found satisfactory, and he is hereby approved to submit it. I wish him the best of luck in his future endeavors."
@@ -349,7 +349,7 @@ def generate_10_chapter_practicum_report():
         "S M Rifatur Rana\n"
         "Lecturer and Supervisor\n"
         "Department of Computer Science and Engineering\n"
-        "IUBAT—International University of Business Agriculture and Technology"
+        "International University of Business Agriculture and Technology"
     )
 
     doc.add_page_break()
@@ -364,13 +364,13 @@ def generate_10_chapter_practicum_report():
     add_title("Abstract", size=16, space_after=18)
 
     add_body(
-        "The “IUBAT Hostel Seat Management System” is a web-based application developed to simplify and automate the management of university residential hall seats, room allocations, meal booking, digital out-passes, and multi-tier governance at IUBAT under the supervision of Agnos Group LTD. In many universities, hostel administration is handled manually through paper slips and spreadsheets, which creates operational delays, registration difficulties, lack of live vacancy visibility, and meal billing discrepancies. This project aims to provide a centralized digital platform where administrators, supervisors (house tutors/provost), staff, and students can interact efficiently."
+        "The “Hostel Seat Allocation Management System” is a web-based application developed to simplify and automate the management of university residential hall seats, room allocations, meal booking, digital out-passes, and multi-tier governance under the supervision of Agnos Group LTD. In many universities, hostel administration is handled manually through paper slips and spreadsheets, which creates operational delays, registration difficulties, lack of live vacancy visibility, and meal billing discrepancies. This project aims to provide a centralized digital platform where administrators, supervisors (house tutors/provost), staff, and students can interact efficiently."
     )
     add_body(
         "The system is designed using a multi-tier role-based architecture consisting of key primary user roles: Admin, Supervisor (House Tutor & Hostel Super), Staff (Dining & Maintenance), Guardian, and Student. The admin has full control over the system, including managing student admissions, room tariffs, financial ledgers, and user suspensions. Supervisors manage room allocations, approve student leaves, monitor attendance, and assign maintenance work orders. Students can browse live vacant beds across Padma Residential Hall (Floor 1 & 2), select room qualities (Single, Double, 4-Bed Quad), submit leave applications with guardian consent, purchase meal tokens, and pay fees online via integrated payment systems."
     )
     add_body(
-        "The project is engineered with a modern full-stack web architecture utilizing React, Tailwind CSS, JavaScript for responsive frontend interfaces, Node.js and Express for backend REST APIs, and MongoDB / MySQL for robust data storage. Session-based authentication, password hashing, and role-based access control ensure high system security. Overall, the IUBAT Hostel Seat Management System delivers a user-friendly, highly organized, and efficient solution that reduces administrative overhead by 90% and ensures transparent residential governance."
+        "The project is engineered with a modern full-stack web architecture utilizing React, Tailwind CSS, JavaScript for responsive frontend interfaces, Node.js and Express for backend REST APIs, and MongoDB / MySQL for robust data storage. Session-based authentication, password hashing, and role-based access control ensure high system security. Overall, the Hostel Seat Allocation Management System delivers a user-friendly, highly organized, and efficient solution that reduces administrative overhead by 90% and ensures transparent residential governance."
     )
 
     doc.add_page_break()
@@ -388,7 +388,7 @@ def generate_10_chapter_practicum_report():
         "All praise and gratitude belong to the Almighty for granting me the ability and perseverance to successfully complete this practicum work."
     )
     add_body(
-        "I would like to convey my sincere thanks to all the individuals who supported me during the development of my project titled “Development of IUBAT Hostel Seat Management System for Agnos Group LTD.” Their guidance, encouragement, and cooperation played an important role in completing this work successfully."
+        "I would like to convey my sincere thanks to all the individuals who supported me during the development of my project titled “Development of Hostel Seat Allocation Management System for Agnos Group LTD.” Their guidance, encouragement, and cooperation played an important role in completing this work successfully."
     )
     add_body(
         "I am deeply thankful to the honorable Vice-Chancellor of International University of Business Agriculture and Technology, Prof. Dr. Abdur Rab, the Chairman of the Department of Computer Science and Engineering, Dean, ISCSE, Prof. Dr. Utpal Kanti Das, and the Coordinator, Shahinur Alam, for providing an excellent academic environment and continuous inspiration."
@@ -551,12 +551,12 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("1.1 Introduction")
     add_body(
-        "The “Development of IUBAT Hostel Seat Management System” is a web-based application developed to simplify and automate the management of university residential halls, room allocations, meal bookings, out-passes, and student accommodations for Agnos Group LTD. In many universities, hostel-related tasks such as seat allocation, student registration, meal management, gate pass issuance, and room vacancy monitoring are often handled manually, which leads to inefficiency, data redundancy, and communication problems. This project aims to provide a centralized digital platform where administrators, supervisors (house tutors/provost), staff, and students can interact efficiently for managing and residing in university hostels. The system allows administrators to manage room tariffs, students, supervisors, and financial ledgers, while supervisors can organize floor allocations, verify maintenance requests, and monitor student attendance. Students can browse real-time room vacancy information across Padma Residential Hall, view detailed floor schedules, and register for seats online. The system also supports role-based authentication, room capacity management, and meal scheduling to ensure smooth hostel operations. The project is developed using Node.js, Express, React, Tailwind CSS, JavaScript, and MongoDB / MySQL. The backend handles data management and authentication, while the frontend provides a user-friendly and responsive interface."
+        "The “Development of Hostel Seat Allocation Management System” is a web-based application developed to simplify and automate the management of university residential halls, room allocations, meal bookings, out-passes, and student accommodations for Agnos Group LTD. In many universities, hostel-related tasks such as seat allocation, student registration, meal management, gate pass issuance, and room vacancy monitoring are often handled manually, which leads to inefficiency, data redundancy, and communication problems. This project aims to provide a centralized digital platform where administrators, supervisors (house tutors/provost), staff, and students can interact efficiently for managing and residing in university hostels. The system allows administrators to manage room tariffs, students, supervisors, and financial ledgers, while supervisors can organize floor allocations, verify maintenance requests, and monitor student attendance. Students can browse real-time room vacancy information across Padma Residential Hall, view detailed floor schedules, and register for seats online. The system also supports role-based authentication, room capacity management, and meal scheduling to ensure smooth hostel operations. The project is developed using Node.js, Express, React, Tailwind CSS, JavaScript, and MongoDB / MySQL. The backend handles data management and authentication, while the frontend provides a user-friendly and responsive interface."
     )
 
     add_heading_1("1.2 Background of the Study")
     add_body(
-        "University residential living plays an essential role in student academic performance, security, and institutional community building. However, managing residential halls manually often creates several challenges including poor communication between house tutors and guardians, seat allocation delays, room billing disputes, and difficulty in monitoring resident curfews. Many educational institutions still rely on paper-based or unorganized spreadsheet systems for hostel seat management, which consumes time and increases administrative workload. Students also face difficulties in accessing live vacancy information and completing seat registrations efficiently. To overcome these issues, the “Development of IUBAT Hostel Seat Management System” has been proposed as a centralized web-based solution. The system automates the complete hostel lifecycle including room creation, supervisor assignment, room allocation, student registration, dynamic meal billing, and financial reporting. It improves communication among users, reduces manual work, and ensures structured residential management within the university environment."
+        "University residential living plays an essential role in student academic performance, security, and institutional community building. However, managing residential halls manually often creates several challenges including poor communication between house tutors and guardians, seat allocation delays, room billing disputes, and difficulty in monitoring resident curfews. Many educational institutions still rely on paper-based or unorganized spreadsheet systems for hostel seat management, which consumes time and increases administrative workload. Students also face difficulties in accessing live vacancy information and completing seat registrations efficiently. To overcome these issues, the “Development of Hostel Seat Allocation Management System” has been proposed as a centralized web-based solution. The system automates the complete hostel lifecycle including room creation, supervisor assignment, room allocation, student registration, dynamic meal billing, and financial reporting. It improves communication among users, reduces manual work, and ensures structured residential management within the university environment."
     )
 
     add_heading_1("1.3 Methodology")
@@ -582,7 +582,7 @@ def generate_10_chapter_practicum_report():
     add_bullet("Online tutorials and technical documentation for React, Node.js, Express, MongoDB, and Tailwind CSS.")
     add_bullet("Research articles and websites related to smart campus hostel management systems.")
     add_bullet("Educational resources, developer manuals, and system design patterns.")
-    add_bullet("Existing university hostel management system references and IUBAT residential guidelines.")
+    add_bullet("Existing university hostel management system references and residential guidelines.")
 
     add_body("Additional points:", bold_prefix=None)
     add_bullet("Various online resources were used to understand real-world hostel operational workflows.")
@@ -595,7 +595,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_2("1.4.1 Broad Objective")
     add_body(
-        "The broad objective of this practicum work is to develop a web-based “IUBAT Hostel Seat Management System” for Agnos Group LTD. that automates and simplifies the process of seat allocation, vacancy monitoring, meal management, digital out-passes, and multi-tier governance within a university hostel environment."
+        "The broad objective of this practicum work is to develop a web-based “Hostel Seat Allocation Management System” for Agnos Group LTD. that automates and simplifies the process of seat allocation, vacancy monitoring, meal management, digital out-passes, and multi-tier governance within a university hostel environment."
     )
 
     add_heading_2("1.4.2 Specific Objectives")
@@ -609,7 +609,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("1.5 Process Model")
     add_body(
-        "The Agile Process Model was used for developing the IUBAT Hostel Seat Management System. Agile is an iterative and incremental approach that allows development in small modules with continuous feedback and improvement."
+        "The Agile Process Model was used for developing the Hostel Seat Allocation Management System. Agile is an iterative and incremental approach that allows development in small modules with continuous feedback and improvement."
     )
     add_body("Reasons for Using Agile Model:")
     add_bullet("Flexibility to modify features during development based on tutor and provost feedback.")
@@ -624,7 +624,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_2("1.5.1 Specific Objectives / Incremental Model")
     add_body(
-        "Choosing the Incremental Development Model for the IUBAT Hostel Seat Management System provides several advantages that align effectively with the requirements of a role-based web application. The reasons for selecting this model are discussed below:"
+        "Choosing the Incremental Development Model for the Hostel Seat Allocation Management System provides several advantages that align effectively with the requirements of a role-based web application. The reasons for selecting this model are discussed below:"
     )
     add_bullet("Gradual Development Process: The Incremental Model allows the system to be developed step by step through multiple modules such as authentication, room vacancy radar, meal token management, digital leave approvals, and executive financial ledgers. This makes the development process more organized and manageable.")
     add_bullet("Easy Testing and Debugging: Each module can be tested individually after development. This helps identify and fix errors quickly before integrating the next module into the system.")
@@ -716,7 +716,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("2.6 My Position in this Organization")
     add_body(
-        "In this organization, I worked as a Junior Software Developer (Intern) in the Department of Software Development. My responsibilities included assisting in frontend and backend development for the “IUBAT Hostel Seat Management System”, implementing role-based authentication, designing database schemas, integrating seat allocation and room radar modules, developing meal token verification APIs, conducting software testing, and preparing technical documentation. I collaborated closely with senior software engineers, UI designers, and project supervisors during the entire development lifecycle. This internship provided me with invaluable practical experience in MERN stack web development, agile sprint practices, code debugging, and systematic problem-solving in a professional corporate environment."
+        "In this organization, I worked as a Junior Software Developer (Intern) in the Department of Software Development. My responsibilities included assisting in frontend and backend development for the “Hostel Seat Allocation Management System”, implementing role-based authentication, designing database schemas, integrating seat allocation and room radar modules, developing meal token verification APIs, conducting software testing, and preparing technical documentation. I collaborated closely with senior software engineers, UI designers, and project supervisors during the entire development lifecycle. This internship provided me with invaluable practical experience in MERN stack web development, agile sprint practices, code debugging, and systematic problem-solving in a professional corporate environment."
     )
 
     add_heading_1("2.7 Address of the Organization")
@@ -736,7 +736,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("3.1 Requirement Analysis")
     add_body(
-        "Requirements for the “Development of IUBAT Hostel Seat Management System” involve a structured process to identify, analyze, specify, validate, and manage the user and system requirements. Through observation, discussions, and requirement collection from students, house tutors, provosts, dining staff, and university IT administrators, various system needs such as seat creation, room allocation, meal token booking, digital out-pass approvals, secure login, role-based access control, and financial ledger auditing were identified."
+        "Requirements for the “Development of Hostel Seat Allocation Management System” involve a structured process to identify, analyze, specify, validate, and manage the user and system requirements. Through observation, discussions, and requirement collection from students, house tutors, provosts, dining staff, and university IT administrators, various system needs such as seat creation, room allocation, meal token booking, digital out-pass approvals, secure login, role-based access control, and financial ledger auditing were identified."
     )
     add_body(
         "The system requirements for administrators include room tariff management, supervisor assignment, student record governance, financial profit-and-loss reporting, and account suspension/deletion. Supervisor requirements include floor seat inspection, out-pass recommendation, and maintenance delegation. Student requirements include browsing live vacant seats across Padma Residential Hall, viewing room qualities, applying for seats, taking AI roommate compatibility tests, and purchasing meal tokens online. Requirement analysis ensured that the proposed system remains feasible, user-friendly, and aligned with the project objectives. The Incremental Process Model was used during development to gradually implement modules such as authentication, room vacancy radar, meal token management, and leave approval pipelines."
@@ -817,7 +817,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("3.3 Use Case Diagram of the System")
     add_body(
-        "Figure 3. 1 represents the standard Use Case symbols used, and Figure 3. 2 illustrates the complete Use Case Diagram for the IUBAT Hostel Seat Management System."
+        "Figure 3. 1 represents the standard Use Case symbols used, and Figure 3. 2 illustrates the complete Use Case Diagram for the Hostel Seat Allocation Management System."
     )
     p_f31 = doc.add_paragraph()
     p_f31.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -842,7 +842,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("4.1 Software Analysis Pattern")
     add_body(
-        "For the development of the “IUBAT Hostel Seat Management System”, the Model–View–Controller (MVC) and Layered Architectural Pattern were selected. The MVC pattern separates the application into three interconnected components: Model, View, and Controller. This architectural approach improves maintainability, scalability, modularity, and system organization."
+        "For the development of the “Hostel Seat Allocation Management System”, the Model–View–Controller (MVC) and Layered Architectural Pattern were selected. The MVC pattern separates the application into three interconnected components: Model, View, and Controller. This architectural approach improves maintainability, scalability, modularity, and system organization."
     )
     add_bullet("Model: Manages business data models (User, Room, Application, Meal, GatePass, Complaint, Payment) and database interactions with MongoDB / MySQL.")
     add_bullet("View: Represents the interactive user interface, designed with React 18, Tailwind CSS, and Lucide icons for responsive rendering.")
@@ -889,7 +889,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("5.1 Project Management")
     add_body(
-        "Project management ensures that the development of the “IUBAT Hostel Seat Management System” is completed systematically within planned timelines and resource constraints. The project management lifecycle encompassed requirement gathering, sprint planning, development, unit testing, security audits, and deployment."
+        "Project management ensures that the development of the “Hostel Seat Allocation Management System” is completed systematically within planned timelines and resource constraints. The project management lifecycle encompassed requirement gathering, sprint planning, development, unit testing, security audits, and deployment."
     )
 
     add_heading_1("5.2 Risk Identification")
@@ -968,7 +968,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("6.1 Project Planning and Scheduling")
     add_body(
-        "Project planning and scheduling ensure that the “IUBAT Hostel Seat Management System” is developed within planned time, resource, and budget constraints. The project timeline spanned 80 working days (approximately 3 months) during the internship at Agnos Group LTD."
+        "Project planning and scheduling ensure that the “Hostel Seat Allocation Management System” is developed within planned time, resource, and budget constraints. The project timeline spanned 80 working days (approximately 3 months) during the internship at Agnos Group LTD."
     )
 
     add_heading_1("6.2 System Project Estimation")
@@ -1055,7 +1055,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("7.1 Interface Design")
     add_body(
-        "The interface of the “IUBAT Hostel Seat Management System” is designed with a modern SaaS aesthetic, clean typography, responsive layout grids, and full dark/light theme support. It features:"
+        "The interface of the “Hostel Seat Allocation Management System” is designed with a modern SaaS aesthetic, clean typography, responsive layout grids, and full dark/light theme support. It features:"
     )
     add_bullet("7.1.1 Landing & About Us: Highlights key hostel amenities, safety protocols, and room qualities.")
     add_bullet("7.1.2 Seat Vacancy Radar: Live interactive display of vacant vs. occupied beds in Padma Residential Hall.")
@@ -1107,7 +1107,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("8.1 Software Quality Management Process")
     add_body(
-        "The following activities were implemented to ensure the quality of the “IUBAT Hostel Seat Management System”:"
+        "The following activities were implemented to ensure the quality of the “Hostel Seat Allocation Management System”:"
     )
     add_bullet("Requirement Verification: All functional and non-functional requirements such as room allocation logic, meal validation, and out-pass pipelines were thoroughly validated.")
     add_bullet("Code Quality Control: Clean, structured, modular code adhering to React best practices, Express middleware standards, and REST conventions.")
@@ -1125,7 +1125,7 @@ def generate_10_chapter_practicum_report():
         ["Step", "Test Steps", "Test Data", "Expected Result", "Status"],
         [
             ["1", "Open login modal", "N/A", "Login modal renders correctly", "Pass"],
-            ["2", "Enter Email / ID", "student.cse@iubat.edu / 221004128", "Input accepted", "Pass"],
+            ["2", "Enter Email / ID", "student.cse@hostel.edu / 221004128", "Input accepted", "Pass"],
             ["3", "Enter Password", "123456", "Masked password accepted", "Pass"],
             ["4", "Click Login", "N/A", "Redirects to role dashboard", "Pass"],
             ["5", "Check Role Access", "Role: Student", "Student dashboard shown", "Pass"]
@@ -1157,7 +1157,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("9.1 Ethical Considerations in the Software Development Process")
     add_body(
-        "The “IUBAT Hostel Seat Management System” was developed by following ethical software engineering principles to ensure privacy, security, fairness, and responsibility toward all users including Admin, Supervisor, Staff, Parents, and Students."
+        "The “Hostel Seat Allocation Management System” was developed by following ethical software engineering principles to ensure privacy, security, fairness, and responsibility toward all users including Admin, Supervisor, Staff, Parents, and Students."
     )
     add_bullet("9.1.1 Data Privacy and Security: Student personal data, guardian phone numbers, and payment details are encrypted. Bcrypt hashing protects user passwords.")
     add_bullet("9.1.2 Intellectual Property: All system design, code, and database structures are originally developed; open-source libraries are used under MIT licenses.")
@@ -1179,7 +1179,7 @@ def generate_10_chapter_practicum_report():
 
     add_heading_1("10.1 Brief Overview of the Project")
     add_body(
-        "The “IUBAT Hostel Seat Management System” is a centralized web-based application designed to simplify and automate the management of university residential hall seats, room allocations, meal booking, digital out-passes, and multi-tier governance for IUBAT under the mentorship of Agnos Group LTD. By digitizing hostel operations, the system eliminates manual paperwork, improves coordination, and provides a smooth, user-friendly experience for all users."
+        "The “Hostel Seat Allocation Management System” is a centralized web-based application designed to simplify and automate the management of university residential hall seats, room allocations, meal booking, digital out-passes, and multi-tier governance under the mentorship of Agnos Group LTD. By digitizing hostel operations, the system eliminates manual paperwork, improves coordination, and provides a smooth, user-friendly experience for all users."
     )
 
     add_heading_1("10.2 Proposed System Benefits")
@@ -1244,7 +1244,7 @@ def generate_10_chapter_practicum_report():
         p_ref.paragraph_format.first_line_indent = Inches(-0.4)
         p_ref.add_run(f"{idx}. {ref}")
 
-    out_file = "/Users/parvez/Desktop/prroject/IUBAT_Hostel_Seat_Management_System_Practicum_Report.docx"
+    out_file = "/Users/parvez/Desktop/prroject/Hostel_Seat_Allocation_Management_System_Practicum_Report.docx"
     doc.save(out_file)
     print(f"✅ Full 10-Chapter Report Generated at: {out_file}")
 

@@ -6,7 +6,7 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      trim: true, // e.g. '#IUBAT-APP-8492'
+      trim: true, // e.g. '#HSTL-APP-8492'
     },
     fullName: {
       type: String,

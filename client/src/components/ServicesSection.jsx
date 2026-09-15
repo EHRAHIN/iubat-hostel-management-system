@@ -63,7 +63,7 @@ export default function ServicesSection() {
             Institutional Management <span className="saas-gradient-text">Superpowers</span>
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-            Structured administrative modules supporting all stakeholders across IUBAT residential operations with real-time accuracy.
+            Structured administrative modules supporting all stakeholders across residential hall operations with real-time accuracy.
           </p>
         </div>
 

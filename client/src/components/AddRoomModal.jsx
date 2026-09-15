@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Plus,
@@ -17,16 +17,42 @@ export default function AddRoomModal({
   isOpen,
   onClose,
   onSuccess,
+  currentUser,
 }) {
+  const isAdmin = currentUser?.role === 'admin';
   const [roomNumber, setRoomNumber] = useState('');
   const [floor, setFloor] = useState(1);
   const [roomType, setRoomType] = useState('Double Shared Room');
   const [capacity, setCapacity] = useState(2);
-  const [monthlyRent, setMonthlyRent] = useState(2200);
+  const [monthlyRent, setMonthlyRent] = useState(3500);
   const [hasAC, setHasAC] = useState(false);
   const [hasBalcony, setHasBalcony] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [tariffRates, setTariffRates] = useState({
+    single: 5500,
+    double: 3500,
+    quad: 2500,
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadRates = async () => {
+      try {
+        const res = await api.getRooms();
+        if (res?.data) {
+          const single = res.data.find(r => r.roomType?.includes('Single'))?.monthlyRent || 5500;
+          const double = res.data.find(r => r.roomType?.includes('Double'))?.monthlyRent || 3500;
+          const quad = res.data.find(r => r.roomType?.includes('4-Bed') || r.roomType?.includes('Quad'))?.monthlyRent || 2500;
+          setTariffRates({ single, double, quad });
+          if (roomType === 'Single Deluxe Room') setMonthlyRent(single);
+          else if (roomType === '4-Bed Standard Room') setMonthlyRent(quad);
+          else setMonthlyRent(double);
+        }
+      } catch (e) {}
+    };
+    loadRates();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -34,14 +60,14 @@ export default function AddRoomModal({
     setRoomType(type);
     if (type === 'Single Deluxe Room') {
       setCapacity(1);
-      setMonthlyRent(3500);
+      setMonthlyRent(tariffRates.single);
       setHasAC(true);
     } else if (type === 'Double Shared Room') {
       setCapacity(2);
-      setMonthlyRent(2200);
+      setMonthlyRent(tariffRates.double);
     } else if (type === '4-Bed Standard Room') {
       setCapacity(4);
-      setMonthlyRent(1400);
+      setMonthlyRent(tariffRates.quad);
     }
   };
 
@@ -51,6 +77,20 @@ export default function AddRoomModal({
 
     if (!roomNumber.trim()) {
       setErrorMsg('Please enter a room number (e.g. 109, 209).');
+      return;
+    }
+
+    // Strict Capacity Validation before submission
+    if (roomType === 'Single Deluxe Room' && Number(capacity) !== 1) {
+      setErrorMsg('Single room is strictly limited to 1 bed.');
+      return;
+    }
+    if (roomType === 'Double Shared Room' && Number(capacity) !== 2) {
+      setErrorMsg('Double room is strictly limited to 2 beds (cannot make 3 beds).');
+      return;
+    }
+    if (roomType === '4-Bed Standard Room' && Number(capacity) !== 4) {
+      setErrorMsg('4-Bed room is strictly limited to 4 beds (cannot make 5 beds).');
       return;
     }
 
@@ -64,6 +104,7 @@ export default function AddRoomModal({
         roomType,
         capacity: Number(capacity),
         monthlyRent: Number(monthlyRent),
+        userRole: currentUser?.role || 'admin',
         hasAC: Boolean(hasAC),
         hasBalcony: Boolean(hasBalcony),
         status: 'Available',
@@ -93,7 +134,9 @@ export default function AddRoomModal({
             </div>
             <div>
               <h2 className="text-base font-bold tracking-tight">Add New Residential Room</h2>
-              <p className="text-xs text-emerald-200/90 font-mono">Padma Residential Hall Inventory</p>
+              <p className="text-xs text-emerald-200/90 font-mono">
+                {isAdmin ? '👑 Super Admin Room & Tariff Provisioning' : '🏛️ Hostel Super (Provost) Inventory Setup'}
+              </p>
             </div>
           </div>
           <button
@@ -151,13 +194,13 @@ export default function AddRoomModal({
           <div>
             <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1 flex items-center gap-1.5">
               <Bed size={13} className="text-emerald-600" />
-              <span>Room Quality & Layout</span>
+              <span>Room Quality & Layout (Strict Bed Rule)</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: 'Single Deluxe Room', label: 'Single (1-Bed)', rent: '৳3,500' },
-                { id: 'Double Shared Room', label: 'Double (2-Bed)', rent: '৳2,200' },
-                { id: '4-Bed Standard Room', label: '4-Bed Quad', rent: '৳1,400' },
+                { id: 'Single Deluxe Room', label: 'Single (Strict 1-Bed)', rent: `৳${(tariffRates.single || 5500).toLocaleString()}`, cap: 1 },
+                { id: 'Double Shared Room', label: 'Double (Strict 2-Bed)', rent: `৳${(tariffRates.double || 3500).toLocaleString()}`, cap: 2 },
+                { id: '4-Bed Standard Room', label: '4-Bed Quad (Strict 4-Bed)', rent: `৳${(tariffRates.quad || 2500).toLocaleString()}`, cap: 4 },
               ].map((t) => (
                 <button
                   key={t.id}
@@ -177,35 +220,66 @@ export default function AddRoomModal({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {/* Bed Capacity */}
+            {/* Bed Capacity - STRICTLY LOCKED BY ROOM TYPE */}
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1 flex items-center gap-1.5">
-                <Bed size={13} className="text-emerald-600" />
-                <span>Bed Capacity</span>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Bed size={13} className="text-emerald-600" />
+                  <span>Bed Capacity (Fixed)</span>
+                </span>
+                <span className="text-[10px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                  Strict Rule
+                </span>
               </label>
-              <input
-                type="number"
-                min="1"
-                max="6"
-                value={capacity}
-                onChange={(e) => setCapacity(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">Generates Bed A, Bed B... automatically</span>
+              <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold flex items-center justify-between">
+                <span>{capacity} {capacity === 1 ? 'Bed' : 'Beds'}</span>
+                <span className="text-[10px] uppercase tracking-wider text-emerald-600 font-bold">
+                  {roomType === 'Single Deluxe Room' ? 'Max 1 Bed' : roomType === 'Double Shared Room' ? 'Max 2 Beds (Cannot be 3)' : 'Max 4 Beds (Cannot be 5)'}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                {roomType === 'Double Shared Room'
+                  ? '⚠️ Double rooms are strictly fixed to 2 beds (A, B). Cannot be made 3.'
+                  : roomType === '4-Bed Standard Room'
+                  ? '⚠️ 4-Bed rooms are strictly fixed to 4 beds (A, B, C, D). Cannot be made 5.'
+                  : '⚠️ Single rooms are strictly fixed to 1 bed (A). Cannot be made double.'}
+              </span>
             </div>
 
-            {/* Monthly Rent */}
+            {/* Monthly Rent - Editable by Admin only */}
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1 flex items-center gap-1.5">
-                <DollarSign size={13} className="text-emerald-600" />
-                <span>Monthly Rent (BDT)</span>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <DollarSign size={13} className="text-emerald-600" />
+                  <span>Monthly Rent (BDT)</span>
+                </span>
+                {isAdmin ? (
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                    Admin Editable
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400">
+                    Official Tariff
+                  </span>
+                )}
               </label>
               <input
                 type="number"
                 value={monthlyRent}
+                readOnly={!isAdmin}
+                disabled={!isAdmin}
                 onChange={(e) => setMonthlyRent(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className={`w-full px-3 py-2 rounded-xl border text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  isAdmin
+                    ? 'bg-slate-50 dark:bg-[#060911] border-slate-200 dark:border-slate-800'
+                    : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-85'
+                }`}
               />
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                {isAdmin
+                  ? 'Admin can customize this room price or keep standard tariff.'
+                  : 'Tariff is fixed by university policy. Only Super Admin can change room prices.'}
+              </span>
             </div>
           </div>
 

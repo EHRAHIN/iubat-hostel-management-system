@@ -255,11 +255,11 @@ export default function PaymentReceiptModal({
               <div className="inline-flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl">
                 <QrCode size={36} className="text-slate-800" />
                 <div className="text-[8px] font-mono leading-tight text-slate-500">
-                  VERIFIED-BY<br />SSLCOMMERZ<br />IUBAT-HOSTEL
+                  VERIFIED-BY<br />SSLCOMMERZ<br />HOSTEL-PORTAL
                 </div>
               </div>
               <p className="text-[9px] text-slate-400 font-mono">
-                Digitally cryptographed on IUBAT Server
+                Digitally cryptographed on Secure Institutional Server
               </p>
             </div>
 
@@ -270,7 +270,7 @@ export default function PaymentReceiptModal({
                 isRefunded ? 'border-purple-700 text-purple-800 bg-purple-50/40' :
                 'border-slate-700 text-slate-800 bg-slate-50/40'
               }`}>
-                <span>IUBAT</span>
+                <span>HOSTEL</span>
                 <span>ACCOUNTS</span>
                 <span>{isPaid ? 'PAID' : isRefunded ? 'REFUND' : 'INVOICE'}</span>
               </div>
@@ -286,7 +286,7 @@ export default function PaymentReceiptModal({
                 Hostel Super / Provost
               </div>
               <div className="text-[9px] text-slate-500">
-                Residential Hall Directorate, IUBAT
+                Residential Hall Directorate
               </div>
             </div>
           </div>

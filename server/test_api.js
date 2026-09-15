@@ -57,7 +57,7 @@ async function runTests() {
     // 4. Test Auth & Role Login
     console.log('\n4️⃣ Testing Auth & Login Endpoint...');
     const authRes = mockRes();
-    await login({ body: { username: 'student.cse@iubat.edu', password: 'password123', role: 'student' } }, authRes);
+    await login({ body: { username: 'student.cse@hostel.edu', password: 'password123', role: 'student' } }, authRes);
     console.log('   ✅ Login result:', authRes.data.message, '| User:', authRes.data.user.name, authRes.data.user.role);
 
     // 5. Test Student Verification Terminal

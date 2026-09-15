@@ -32,6 +32,27 @@ export default function ApplySeatModal({
   const [submitted, setSubmitted] = useState(false);
   const [appRef, setAppRef] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [roomTariffs, setRoomTariffs] = useState({
+    single: 5500,
+    double: 3500,
+    quad: 2500,
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const loadTariffs = async () => {
+      try {
+        const res = await api.getRooms();
+        if (res?.data) {
+          const single = res.data.find(r => r.roomType?.includes('Single'))?.monthlyRent || 5500;
+          const double = res.data.find(r => r.roomType?.includes('Double'))?.monthlyRent || 3500;
+          const quad = res.data.find(r => r.roomType?.includes('4-Bed') || r.roomType?.includes('Quad'))?.monthlyRent || 2500;
+          setRoomTariffs({ single, double, quad });
+        }
+      } catch (e) {}
+    };
+    loadTariffs();
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -87,12 +108,12 @@ export default function ApplySeatModal({
       });
 
       setIsSubmitting(false);
-      setAppRef(res?.data?.applicationRef || `#IUBAT-APP-${Math.floor(1000 + Math.random() * 9000)}`);
+      setAppRef(res?.data?.applicationRef || `#HSTL-APP-${Math.floor(1000 + Math.random() * 9000)}`);
       setSubmitted(true);
     } catch (err) {
       setIsSubmitting(false);
       // Fallback submission reference
-      const fallbackRef = `#IUBAT-APP-${Math.floor(1000 + Math.random() * 9000)}`;
+      const fallbackRef = `#HSTL-APP-${Math.floor(1000 + Math.random() * 9000)}`;
       setAppRef(fallbackRef);
       setSubmitted(true);
     }
@@ -113,7 +134,7 @@ export default function ApplySeatModal({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                IUBAT Residential Seat Application
+                Hostel Residential Seat Application
               </h2>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                 Fall 2026
@@ -331,9 +352,9 @@ export default function ApplySeatModal({
                   onChange={handleChange}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 cursor-pointer"
                 >
-                  <option value="Single Deluxe Room">Single Deluxe Room (3,500 BDT/mo)</option>
-                  <option value="Double Shared Room">Double Shared Room (2,200 BDT/mo)</option>
-                  <option value="4-Bed Standard Room">4-Bed Standard Room (1,400 BDT/mo)</option>
+                  <option value="Single Deluxe Room">Single Deluxe Room (৳{roomTariffs.single.toLocaleString()} BDT/mo)</option>
+                  <option value="Double Shared Room">Double Shared Room (৳{roomTariffs.double.toLocaleString()} BDT/mo)</option>
+                  <option value="4-Bed Standard Room">4-Bed Standard Room (৳{roomTariffs.quad.toLocaleString()} BDT/mo)</option>
                 </select>
               </div>
             </div>

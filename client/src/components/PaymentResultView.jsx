@@ -133,7 +133,7 @@ export default function PaymentResultView({ onNavigate, currentUser }) {
           </h1>
 
           <p className="text-sm text-white/80 mt-1 max-w-md mx-auto">
-            {isSuccess && 'Your institutional payment has been verified and marked as Paid in IUBAT Residential Hall System.'}
+            {isSuccess && 'Your institutional payment has been verified and marked as Paid in Hostel Residential Hall System.'}
             {isFailed && (errorMsg || 'Your transaction was not completed by the payment provider.')}
             {isCancelled && 'The transaction session was abandoned before completion. No funds were debited.'}
           </p>
@@ -187,7 +187,7 @@ export default function PaymentResultView({ onNavigate, currentUser }) {
               <div>
                 <span className="text-slate-400 block mb-0.5">Resident Student</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {paymentData?.customerName || currentUser?.name || 'IUBAT Resident Student'}
+                  {paymentData?.customerName || currentUser?.name || 'Hall Resident Student'}
                 </span>
               </div>
 

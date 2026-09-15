@@ -168,7 +168,7 @@ export default function CounterPosModal({
     }
 
     // 2. GATE PASS SCAN
-    if (payload.type === 'GATE_PASS' || payload.qrCode || trimmed.startsWith('IUBAT-QR-') || trimmed.startsWith('LP-')) {
+    if (payload.type === 'GATE_PASS' || payload.qrCode || trimmed.startsWith('HSTL-QR-') || trimmed.startsWith('LP-')) {
       const passId = payload.passId || trimmed;
       const qrCode = payload.qrCode || trimmed;
 
@@ -294,7 +294,7 @@ export default function CounterPosModal({
         JSON.stringify({
           type: 'GATE_PASS',
           passId: 'LP-2026-001',
-          qrCode: 'IUBAT-QR-9842',
+          qrCode: 'HSTL-QR-9842',
           studentId: '22203188',
           studentName: 'Emdadul Haque Rahin',
           hall: 'Padma Residential Hall',
@@ -488,7 +488,7 @@ export default function CounterPosModal({
                 <span>Official Out-Pass</span>
               </div>
               <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                Code: IUBAT-QR-9842
+                Code: HSTL-QR-9842
               </div>
             </button>
           </div>

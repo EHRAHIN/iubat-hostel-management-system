@@ -37,15 +37,15 @@ export default function Navbar({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
-                IUBAT
+                Hostel
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                Hostel System
+                Seat Allocation
               </span>
             </div>
             <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 hidden sm:flex items-center gap-1.5 mt-0.5">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-              <span>IUBAT Hostel Seat Management System</span>
+              <span>Hostel Seat Allocation Management System</span>
             </p>
           </div>
         </button>

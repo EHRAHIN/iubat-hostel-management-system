@@ -44,7 +44,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
   const [activeTab, setActiveTab] = useState(() => {
     try {
-      return localStorage.getItem('iubat_teacher_tab') || 'rollcall';
+      return localStorage.getItem('hostel_teacher_tab') || 'rollcall';
     } catch {
       return 'rollcall';
     }
@@ -52,7 +52,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
   useEffect(() => {
     try {
-      localStorage.setItem('iubat_teacher_tab', activeTab);
+      localStorage.setItem('hostel_teacher_tab', activeTab);
     } catch (e) {
       console.error(e);
     }
@@ -306,12 +306,36 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
     try {
       const res = await api.getComplaints();
       if (res?.data) {
-        // Filter tickets for this Floor Teacher's floor
+        // Filter tickets for this Floor Teacher's floor (maintenance complaints)
         const relevant = res.data.filter((c) => {
+          if (c.isTeacherComplaint) return false;
           const matchesFloor = !c.floor || c.floor.toLowerCase().includes(floorPrefix) || c.room?.includes(floorPrefix);
           return matchesFloor;
         });
         setFloorMaintenance(relevant);
+
+        // Also sync real teacher incidents from database for this floor
+        const dbIncidents = res.data.filter((c) => {
+          if (!c.isTeacherComplaint) return false;
+          return !c.floor || c.floor.toLowerCase().includes(floorPrefix) || c.room?.includes(floorPrefix);
+        }).map((c) => ({
+          id: c.ticketId,
+          date: new Date(c.createdAt || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          room: c.room,
+          category: c.incidentType || c.category || 'Discipline',
+          severity: c.severity || 'Medium',
+          description: c.description,
+          actionTaken: 'Recorded in Student File & Floor Journal',
+          status: c.status || 'Forwarded to Hostel Super',
+        }));
+
+        if (dbIncidents.length > 0) {
+          setIncidents((prev) => {
+            const map = new Map();
+            [...dbIncidents, ...prev].forEach(item => map.set(item.id, item));
+            return Array.from(map.values());
+          });
+        }
       }
     } catch (err) {
       console.log('Error loading complaints for tutor:', err.message);
@@ -387,25 +411,46 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
     }
   };
 
-  const handleCreateIncident = (e) => {
+  const handleCreateIncident = async (e) => {
     e.preventDefault();
-    if (!newIncident.description.trim()) return;
+    if (!newIncident.description?.trim()) return;
 
-    const report = {
-      id: `INC-2026-0${incidents.length + 19}`,
-      date: 'Sep 14, 2026',
-      room: newIncident.room,
-      category: newIncident.category,
-      severity: newIncident.severity,
-      description: newIncident.description,
-      actionTaken: 'Logged in Floor Teacher Daily Journal',
-      status: 'Forwarded to Hostel Super',
-    };
+    try {
+      const res = await api.createComplaint({
+        title: `Floor Conduct: ${newIncident.category} (${newIncident.room})`,
+        description: newIncident.description,
+        category: newIncident.category || 'Discipline',
+        severity: newIncident.severity || 'Medium',
+        room: newIncident.room,
+        floor: `Floor ${floorPrefix}`,
+        isTeacherComplaint: true,
+        incidentType: newIncident.category || 'Discipline',
+        reportedByName: teacher.name || currentUser?.name || 'Floor House Tutor',
+        reportedByRole: 'Floor Teacher',
+        targetStudentId: newIncident.studentId || '',
+        targetStudentName: newIncident.studentName || '',
+      });
 
-    setIncidents([report, ...incidents]);
-    setIncidentModalOpen(false);
-    setNewIncident({ room: 'Room 308', category: 'Discipline', severity: 'Medium', description: '' });
-    safeToast('Floor inspection incident logged and forwarded to Provost.', 'success');
+      const report = {
+        id: res?.data?.ticketId || `INC-2026-0${incidents.length + 19}`,
+        date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        room: newIncident.room,
+        category: newIncident.category,
+        severity: newIncident.severity,
+        description: newIncident.description,
+        actionTaken: 'Logged in Floor Teacher Daily Journal & Student History',
+        status: 'Forwarded to Hostel Super',
+      };
+
+      setIncidents([report, ...incidents]);
+      setIncidentModalOpen(false);
+      setNewIncident({ room: `Room ${floorPrefix}08`, category: 'Discipline', severity: 'Medium', description: '', studentId: '', studentName: '' });
+      safeToast('Floor inspection incident logged into Student History and forwarded to Provost.', 'success');
+      fetchFloorMaintenance();
+    } catch (err) {
+      console.error('Failed to log incident:', err);
+      safeToast(err.message || 'Failed to file incident report.', 'error');
+    }
   };
 
   if (!currentUser) {
@@ -450,7 +495,7 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
 
           <button
             onClick={onLogout}
-            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
+            className="ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 hover:border-rose-600 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white dark:border-rose-900/50 dark:hover:border-rose-600 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:shadow-rose-600/20"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -939,6 +984,35 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
                         {item.description}
                       </div>
 
+                      {/* Live Maintenance Work Progress Bar */}
+                      {(item.status?.includes('In Progress') || (item.progressPercent && item.progressPercent > 0)) && (
+                        <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] font-bold">
+                            <span className="text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse inline-block" />
+                              Active Work Progress
+                            </span>
+                            <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{item.progressPercent || 0}%</span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-blue-200/50 dark:bg-blue-900/60 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500"
+                              style={{ width: `${Math.min(100, Math.max(0, item.progressPercent || 0))}%` }}
+                            />
+                          </div>
+                          {item.staffNotes && (
+                            <p className="text-[10px] text-blue-800 dark:text-blue-200 italic mt-1 font-medium">
+                              Crew Note: "{item.staffNotes}"
+                            </p>
+                          )}
+                          {item.estimatedCompletion && (
+                            <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                              Est. Completion: <strong>{item.estimatedCompletion}</strong>
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-[11px] space-y-1 text-slate-600 dark:text-slate-400">
                         <div><strong>Reported By:</strong> {item.studentName || item.reportedBy} ({item.studentId || 'Resident'})</div>
                         <div><strong>Category:</strong> {item.category}</div>
@@ -1048,6 +1122,29 @@ export default function FloorTeacherDashboard({ currentUser, onLogout, onShowToa
                     <option value="High">High (Provost Disciplinary Action)</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Target Resident Student (Optional)</label>
+                <select
+                  value={newIncident.studentId || ''}
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    const std = studentsRoster.find(s => s.id === selectedId);
+                    setNewIncident(prev => ({
+                      ...prev,
+                      studentId: selectedId,
+                      studentName: std ? std.name : '',
+                      room: std ? std.room : prev.room
+                    }));
+                  }}
+                  className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-emerald-600 cursor-pointer"
+                >
+                  <option value="">-- General Room / Unidentified Resident --</option>
+                  {studentsRoster.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.id}) - {s.room}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

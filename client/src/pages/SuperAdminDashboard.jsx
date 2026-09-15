@@ -72,7 +72,7 @@ import PaymentReceiptModal from '../components/PaymentReceiptModal';
 export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast }) {
   const [activeTab, setActiveTab] = useState(() => {
     try {
-      return localStorage.getItem('iubat_admin_tab') || 'financials';
+      return localStorage.getItem('hostel_admin_tab') || 'financials';
     } catch {
       return 'financials';
     }
@@ -80,7 +80,7 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
 
   useEffect(() => {
     try {
-      localStorage.setItem('iubat_admin_tab', activeTab);
+      localStorage.setItem('hostel_admin_tab', activeTab);
     } catch (e) {
       console.error(e);
     }
@@ -91,7 +91,7 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
     name: currentUser?.name || 'Prof. Dr. Abdur Rob',
     role: 'Vice Chancellor & Chief Executive Authority',
     department: 'Central Institutional Administration & Governance',
-    adminId: currentUser?.userId || 'VC-IUBAT-001',
+    adminId: currentUser?.userId || 'VC-HSTL-001',
     accessLevel: 'Root Executive Authority',
     lastLogin: 'Today at 09:15 AM (Campus Executive Network)',
   };
@@ -222,17 +222,23 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
   // ==========================================
   // 8. TARIFFS, AI VECTORS & SYSTEM HEALTH
   // ==========================================
-  const [tariffSettings, setTariffSettings] = useState({
-    singleRoomRentBDT: 5500,
-    doubleRoomRentBDT: 3500,
-    quadRoomRentBDT: 2500,
-    breakfastTokenBDT: 30,
-    lunchTokenBDT: 50,
-    dinnerTokenBDT: 50,
-    lateFeePerDayBDT: 50,
-    freeElectricityKWh: 40,
-    applicationPortalOpen: true,
-    curfewCutoffTime: '22:00',
+  const [tariffSettings, setTariffSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hostel_tariff_settings');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      singleRoomRentBDT: 5500,
+      doubleRoomRentBDT: 3500,
+      quadRoomRentBDT: 2500,
+      breakfastTokenBDT: 30,
+      lunchTokenBDT: 50,
+      dinnerTokenBDT: 50,
+      lateFeePerDayBDT: 50,
+      freeElectricityKWh: 40,
+      applicationPortalOpen: true,
+      curfewCutoffTime: '22:00',
+    };
   });
 
   const [sysParams, setSysParams] = useState({
@@ -315,6 +321,23 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
       const res = await api.getRooms();
       if (res?.data) {
         setRoomsList(res.data);
+        const single = res.data.find(r => r.roomType?.includes('Single'));
+        const double = res.data.find(r => r.roomType?.includes('Double'));
+        const quad = res.data.find(r => r.roomType?.includes('4-Bed') || r.roomType?.includes('Quad'));
+        if (single || double || quad) {
+          setTariffSettings(prev => {
+            const next = {
+              ...prev,
+              singleRoomRentBDT: single?.monthlyRent || prev.singleRoomRentBDT,
+              doubleRoomRentBDT: double?.monthlyRent || prev.doubleRoomRentBDT,
+              quadRoomRentBDT: quad?.monthlyRent || prev.quadRoomRentBDT,
+            };
+            try {
+              localStorage.setItem('hostel_tariff_settings', JSON.stringify(next));
+            } catch (e) {}
+            return next;
+          });
+        }
       }
     } catch (err) {
       console.error('Error loading rooms:', err);
@@ -816,10 +839,34 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
 
   // ==========================================
   // TARIFFS & SYSTEM CONFIG HANDLERS
-  // ==========================================
-  const handleSaveTariffSettings = (e) => {
+  const handleSaveTariffSettings = async (e) => {
     e.preventDefault();
-    onShowToast('Global hostel room tariffs, meal pricing, and late fee policies updated university-wide.', 'success');
+    try {
+      const sRent = Number(tariffSettings.singleRoomRentBDT);
+      const dRent = Number(tariffSettings.doubleRoomRentBDT);
+      const qRent = Number(tariffSettings.quadRoomRentBDT);
+
+      await api.updateRoomTariffs({
+        singleRent: sRent,
+        doubleRent: dRent,
+        quadRent: qRent,
+        userRole: currentUser?.role || 'admin',
+      });
+
+      try {
+        localStorage.setItem('hostel_tariff_settings', JSON.stringify(tariffSettings));
+      } catch (e) {}
+
+      await fetchRooms();
+
+      window.dispatchEvent(new CustomEvent('hostel_tariffs_updated', {
+        detail: { singleRent: sRent, doubleRent: dRent, quadRent: qRent }
+      }));
+
+      onShowToast('Global hostel room tariffs and all active room prices updated successfully.', 'success');
+    } catch (err) {
+      onShowToast(err.message || 'Failed to update global room tariffs', 'error');
+    }
   };
 
   const handleSaveParams = (e) => {
@@ -1021,7 +1068,7 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
             </div>
             <button
               onClick={onLogout}
-              className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
+              className="ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 hover:border-rose-600 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white dark:border-rose-900/50 dark:hover:border-rose-600 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:shadow-rose-600/20"
             >
               <LogOut size={14} />
               <span>Sign Out</span>
@@ -2119,12 +2166,25 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
                                 </td>
 
                                 <td className="py-3.5 px-4 whitespace-nowrap align-middle">
-                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${isResolved ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
-                                    c.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
-                                      'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                                    }`}>
-                                    {c.status || 'Open'}
-                                  </span>
+                                  <div className="space-y-1">
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${isResolved ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+                                      c.status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' :
+                                        'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                      }`}>
+                                      {c.status || 'Open'}
+                                    </span>
+                                    {c.progressPercent !== undefined && c.progressPercent > 0 && (
+                                      <div className="flex items-center gap-1.5 w-24">
+                                        <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                                          <div
+                                            className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                                            style={{ width: `${Math.min(100, c.progressPercent)}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-[10px] font-mono text-blue-600 font-bold">{c.progressPercent}%</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </td>
 
                                 <td className="py-3.5 px-4 text-right whitespace-nowrap align-middle">
@@ -3026,7 +3086,7 @@ export default function SuperAdminDashboard({ currentUser, onLogout, onShowToast
                     <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Email Address</label>
                     <input
                       type="email"
-                      placeholder="user@iubat.edu"
+                      placeholder="user@hostel.edu"
                       value={newUserData.email}
                       onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
                       className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-800"

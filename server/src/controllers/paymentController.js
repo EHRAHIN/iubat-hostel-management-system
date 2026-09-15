@@ -66,15 +66,23 @@ const initiateSSLCommerzPayment = asyncHandler(async (req, res) => {
   // If no booking found, create a new pending invoice for the student
   if (!booking) {
     const cleanId = (studentId || customerInfo.studentId || '19103001').toString().trim();
-    const userDoc = await User.findOne({ userId: cleanId });
     const timestamp = Date.now().toString().slice(-6);
     const newInvoiceNo = invoiceNo || `INV-${new Date().getFullYear()}-${timestamp}`;
-    const amount = Number(amountBDT) || 2200;
+    
+    let dynamicRent = 3500;
+    const studentRoom = await Room.findOne({ 'beds.studentId': cleanId });
+    if (studentRoom && studentRoom.monthlyRent) {
+      dynamicRent = studentRoom.monthlyRent;
+    } else {
+      const dRoom = await Room.findOne({ roomType: /Double/i });
+      if (dRoom && dRoom.monthlyRent) dynamicRent = dRoom.monthlyRent;
+    }
+    const amount = Number(amountBDT) || dynamicRent;
 
     booking = await Payment.create({
       invoiceNo: newInvoiceNo,
       studentId: cleanId,
-      studentName: studentName || customerInfo.name || userDoc?.name || 'IUBAT Resident Student',
+      studentName: studentName || customerInfo.name || userDoc?.name || 'Resident Student',
       department: userDoc?.department || 'CSE',
       hall: userDoc?.hall || 'Padma Residential Hall (Male)',
       room: userDoc?.room || 'Room 101',
@@ -89,7 +97,7 @@ const initiateSSLCommerzPayment = asyncHandler(async (req, res) => {
       payerName: customerInfo.name || studentName || userDoc?.name || 'Resident Payer',
       payerPhone: customerInfo.phone || userDoc?.phone || '+880 1712 345678',
       tenantName: customerInfo.name || studentName || userDoc?.name || 'Resident Payer',
-      tenantEmail: customerInfo.email || userDoc?.email || 'student@iubat.edu',
+      tenantEmail: customerInfo.email || userDoc?.email || 'student@hostel.edu',
       tenantPhone: customerInfo.phone || userDoc?.phone || '+880 1712 345678',
       user_id: userDoc?._id || null,
       breakdown: [
@@ -127,8 +135,8 @@ const initiateSSLCommerzPayment = asyncHandler(async (req, res) => {
     product_category: 'Mess Service',
     product_profile: 'service',
     cus_name: customerInfo.name || booking.tenantName || booking.studentName || 'Resident Student',
-    cus_email: customerInfo.email || booking.tenantEmail || 'student@iubat.edu',
-    cus_add1: customerInfo.address || booking.room || 'IUBAT Hostel, Dhaka',
+    cus_email: customerInfo.email || booking.tenantEmail || 'student@hostel.edu',
+    cus_add1: customerInfo.address || booking.room || 'Hostel, Dhaka',
     cus_city: customerInfo.city || 'Dhaka',
     cus_postcode: customerInfo.postcode || '1200',
     cus_country: 'Bangladesh',
@@ -216,7 +224,7 @@ const handleSSLIPN = asyncHandler(async (req, res) => {
 
         // ✅ SEND PAYMENT SUCCESS EMAIL
         try {
-          await sendPaymentSuccess(booking.tenantEmail || 'student@iubat.edu', {
+          await sendPaymentSuccess(booking.tenantEmail || 'student@hostel.edu', {
             userName: booking.tenantName || booking.studentName,
             customerEmail: booking.tenantEmail,
             amount: booking.payAbleAmount || booking.amountBDT,
@@ -354,7 +362,7 @@ const handlePaymentSuccess = asyncHandler(async (req, res) => {
 
     // Send success email
     try {
-      await sendPaymentSuccess(booking.tenantEmail || 'student@iubat.edu', {
+      await sendPaymentSuccess(booking.tenantEmail || 'student@hostel.edu', {
         userName: booking.tenantName || booking.studentName,
         customerEmail: booking.tenantEmail,
         amount: booking.payAbleAmount || booking.amountBDT,
@@ -482,7 +490,7 @@ const autoConfirmPayment = asyncHandler(async (req, res) => {
 
       // ✅ SEND PAYMENT SUCCESS EMAIL FOR AUTO-CONFIRM
       try {
-        await sendPaymentSuccess(booking.tenantEmail || 'student@iubat.edu', {
+        await sendPaymentSuccess(booking.tenantEmail || 'student@hostel.edu', {
           userName: booking.tenantName || booking.studentName,
           customerEmail: booking.tenantEmail,
           amount: booking.payAbleAmount || booking.amountBDT,
@@ -537,7 +545,7 @@ const validatePayment = asyncHandler(async (req, res) => {
     messStatus: 'booked',
     monthlyRent: booking.amountBDT,
     customerName: booking.tenantName || booking.studentName || booking.payerName,
-    customerEmail: booking.tenantEmail || 'student@iubat.edu',
+    customerEmail: booking.tenantEmail || 'student@hostel.edu',
     customerPhone: booking.tenantPhone || booking.payerPhone,
     feeType: booking.feeType,
     bookingDate: booking.createdAt,
@@ -612,7 +620,23 @@ const createInvoice = asyncHandler(async (req, res) => {
   const timestamp = Date.now().toString().slice(-6);
   const invoiceNo = `INV-${new Date().getFullYear()}-${timestamp}`;
   const tran_id = generateSimpleTransactionId(cleanId);
-  const amount = Number(amountBDT) || 2200;
+  
+  let dynamicRent = 3500;
+  const studentRoom = await Room.findOne({ 'beds.studentId': cleanId });
+  if (studentRoom && studentRoom.monthlyRent) {
+    dynamicRent = studentRoom.monthlyRent;
+  } else {
+    const isSingle = userDoc?.preferredCapacity === 1 || (userDoc?.preferredRoom || '').toLowerCase().includes('single');
+    const isQuad = userDoc?.preferredCapacity === 4 || (userDoc?.preferredRoom || '').toLowerCase().includes('4-bed') || (userDoc?.preferredRoom || '').toLowerCase().includes('quad');
+    const targetPattern = isSingle ? /Single/i : isQuad ? /(4-Bed|Quad)/i : /Double/i;
+    const matchedRoom = await Room.findOne({ roomType: targetPattern });
+    if (matchedRoom && matchedRoom.monthlyRent) {
+      dynamicRent = matchedRoom.monthlyRent;
+    } else {
+      dynamicRent = isSingle ? 5500 : isQuad ? 2500 : 3500;
+    }
+  }
+  const amount = Number(amountBDT) || dynamicRent;
 
   const payment = await Payment.create({
     invoiceNo,
@@ -886,7 +910,7 @@ const updatePaymentStatus = asyncHandler(async (req, res) => {
     booking.bookingStatus = 'confirmed';
 
     try {
-      await sendPaymentSuccess(booking.tenantEmail || 'student@iubat.edu', {
+      await sendPaymentSuccess(booking.tenantEmail || 'student@hostel.edu', {
         userName: booking.tenantName || booking.studentName,
         customerEmail: booking.tenantEmail,
         amount: booking.payAbleAmount || booking.amountBDT,

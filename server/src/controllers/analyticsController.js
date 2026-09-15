@@ -131,7 +131,7 @@ exports.getFinancials = async (req, res) => {
           category: 'Staff Salaries & Honorarium',
           hall: 'Padma Residential Hall',
           amountBDT: 145000,
-          vendor: 'IUBAT Central Accounts & Payroll Division',
+          vendor: 'Central Accounts & Payroll Division',
           voucherNo: 'PAY-SEP-2026',
           approvedBy: 'Vice Chancellor / Super Admin',
           paymentMethod: 'Bank Transfer',

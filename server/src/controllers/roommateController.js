@@ -359,7 +359,7 @@ exports.smartAssignSeat = async (req, res) => {
     const houseTutorPhone = floorNumber === 2 ? '+880 1819 654321' : '+880 1819 123456';
 
     // Save Recommendation into Application for Hostel Super (Provost) Approval (DO NOT auto-occupy room)
-    const randomRef = `#IUBAT-APP-${Math.floor(1000 + Math.random() * 9000)}`;
+    const randomRef = `#HSTL-APP-${Math.floor(1000 + Math.random() * 9000)}`;
     const savedApplication = await Application.findOneAndUpdate(
       { studentId: cleanId },
       {

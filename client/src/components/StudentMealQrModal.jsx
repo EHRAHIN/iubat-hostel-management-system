@@ -88,7 +88,7 @@ export default function StudentMealQrModal({ isOpen, onClose, token, student }) 
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                IUBAT Residential Dining Hall • Single Serving Pass
+                Padma Residential Dining Hall • Single Serving Pass
               </p>
             </div>
           </div>

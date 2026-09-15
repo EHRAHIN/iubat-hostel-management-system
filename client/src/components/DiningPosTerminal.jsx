@@ -656,7 +656,7 @@ export default function DiningPosTerminal({
                 className="p-5 rounded-2xl bg-amber-50/50 dark:bg-[#060911] border-2 border-dashed border-amber-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs space-y-3 shadow-inner"
               >
                 <div className="text-center pb-2 border-b border-dashed border-slate-300 dark:border-slate-700 space-y-0.5">
-                  <div className="font-black text-sm tracking-wider">IUBAT DINING HALL POS</div>
+                  <div className="font-black text-sm tracking-wider">HOSTEL DINING HALL POS</div>
                   <div className="text-[10px] text-slate-500">PADMA RESIDENTIAL FOOD SERVICE</div>
                   <div className="text-[10px] text-emerald-600 font-bold">*** MEAL DISPENSED ***</div>
                 </div>

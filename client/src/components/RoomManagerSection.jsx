@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Search,
+  Edit3,
 } from 'lucide-react';
 import { api } from '../services/api';
 import AddRoomModal from './AddRoomModal';
@@ -33,10 +34,21 @@ export default function RoomManagerSection({
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'Available', 'Under Maintenance', 'Fully Occupied'
   const [searchQuery, setSearchQuery] = useState('');
 
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+
   // Modals
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [selectedStudentForTransfer, setSelectedStudentForTransfer] = useState(null);
+  const [editingRoomPrice, setEditingRoomPrice] = useState(null); // { room, newPrice }
+  const [isSavingPrice, setIsSavingPrice] = useState(false);
+
+  const getMaxAllowedCapacity = (roomType) => {
+    if (roomType?.includes('Single')) return 1;
+    if (roomType?.includes('Double')) return 2;
+    if (roomType?.includes('4-Bed') || roomType?.includes('Quad')) return 4;
+    return 4;
+  };
 
   const fetchRooms = async () => {
     try {
@@ -55,6 +67,11 @@ export default function RoomManagerSection({
 
   useEffect(() => {
     fetchRooms();
+    const handleTariffsChanged = () => {
+      fetchRooms();
+    };
+    window.addEventListener('hostel_tariffs_updated', handleTariffsChanged);
+    return () => window.removeEventListener('hostel_tariffs_updated', handleTariffsChanged);
   }, []);
 
   // Room Status / Availability Toggle
@@ -71,16 +88,53 @@ export default function RoomManagerSection({
     }
   };
 
-  // Add Bed to Room
-  const handleAddBed = async (roomId, roomNumber) => {
-    try {
-      const res = await api.addBed(roomId);
+  // Add Bed to Room (Strict capacity enforcement)
+  const handleAddBed = async (room) => {
+    const maxCap = getMaxAllowedCapacity(room.roomType);
+    if ((room.capacity || 0) >= maxCap) {
       if (onShowToast) {
-        onShowToast(res?.message || `Added bed to Room ${roomNumber}`, 'success');
+        onShowToast(`Strict limit: ${room.roomType} cannot exceed ${maxCap} bed(s).`, 'error');
+      }
+      return;
+    }
+    try {
+      const res = await api.addBed(room._id);
+      if (onShowToast) {
+        onShowToast(res?.message || `Added bed to Room ${room.roomNumber}`, 'success');
       }
       fetchRooms();
     } catch (err) {
       if (onShowToast) onShowToast(err.message || 'Failed to add bed', 'error');
+    }
+  };
+
+  // Update Room Price (Admin only)
+  const handleUpdateRoomPrice = async (e) => {
+    e.preventDefault();
+    if (!editingRoomPrice || !editingRoomPrice.room) return;
+    const priceNum = Number(editingRoomPrice.newPrice);
+    if (isNaN(priceNum) || priceNum < 500) {
+      if (onShowToast) onShowToast('Please enter a valid monthly rent amount (minimum ৳500)', 'error');
+      return;
+    }
+    try {
+      setIsSavingPrice(true);
+      const res = await api.updateRoom(editingRoomPrice.room._id, {
+        monthlyRent: priceNum,
+        userRole: currentUser?.role || 'admin',
+      });
+      if (onShowToast) {
+        onShowToast(res?.message || `Room ${editingRoomPrice.room.roomNumber} price updated to ৳${priceNum}/mo`, 'success');
+      }
+      setEditingRoomPrice(null);
+      fetchRooms();
+      window.dispatchEvent(new CustomEvent('hostel_tariffs_updated', {
+        detail: { roomId: editingRoomPrice.room._id, newPrice: priceNum }
+      }));
+    } catch (err) {
+      if (onShowToast) onShowToast(err.message || 'Failed to update room price', 'error');
+    } finally {
+      setIsSavingPrice(false);
     }
   };
 
@@ -272,6 +326,7 @@ export default function RoomManagerSection({
             const isDouble = room.roomType?.includes('Double');
             const isUnderMaintenance = room.status === 'Under Maintenance';
             const vacantBeds = (room.capacity || 0) - (room.occupiedCount || 0);
+            const maxCap = getMaxAllowedCapacity(room.roomType);
 
             return (
               <div
@@ -294,14 +349,25 @@ export default function RoomManagerSection({
                           Floor {room.floor}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs">
+                      <div className="flex items-center gap-1.5 mt-0.5 text-xs flex-wrap">
                         <span className={`font-semibold ${
                           isSingle ? 'text-purple-600' : isDouble ? 'text-blue-600' : 'text-emerald-600'
                         }`}>
                           {room.roomType}
                         </span>
                         <span className="text-slate-400">•</span>
-                        <span className="font-mono text-slate-500">৳{room.monthlyRent}/mo</span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">৳{room.monthlyRent}/mo</span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingRoomPrice({ room, newPrice: room.monthlyRent })}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-[10px] text-emerald-700 dark:text-emerald-300 font-bold ml-1 border border-emerald-200 dark:border-emerald-800 transition-colors"
+                            title="Admin Privilege: Change Room Price"
+                          >
+                            <Edit3 size={10} />
+                            <span>Edit Price</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -341,15 +407,24 @@ export default function RoomManagerSection({
                       <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
                         {room.occupiedCount}/{room.capacity} Beds
                       </span>
-                      {/* Add Bed Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleAddBed(room._id, room.roomNumber)}
-                        className="p-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold flex items-center gap-0.5 transition-colors"
-                        title="Add extra bed to this room (increase capacity)"
-                      >
-                        <Plus size={11} /> Bed
-                      </button>
+                      {/* Add Bed Button or Max Limit Badge */}
+                      {room.capacity < maxCap ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAddBed(room)}
+                          className="p-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold flex items-center gap-0.5 transition-colors"
+                          title={`Add bed up to ${maxCap} limit`}
+                        >
+                          <Plus size={11} /> Bed
+                        </button>
+                      ) : (
+                        <span
+                          className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 text-slate-400 text-[9px] font-bold uppercase tracking-wider"
+                          title={`Strict limit reached (${maxCap} bed(s) max for ${room.roomType})`}
+                        >
+                          Max ({maxCap})
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -462,6 +537,7 @@ export default function RoomManagerSection({
       <AddRoomModal
         isOpen={isAddRoomOpen}
         onClose={() => setIsAddRoomOpen(false)}
+        currentUser={currentUser}
         onSuccess={(msg) => {
           if (onShowToast) onShowToast(msg, 'success');
           fetchRooms();
@@ -482,6 +558,69 @@ export default function RoomManagerSection({
           fetchRooms();
         }}
       />
+
+      {/* Edit Room Price Modal (Admin Only) */}
+      {editingRoomPrice && editingRoomPrice.room && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-[#0d121f] border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  Update Room Tariff / Price
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Room {editingRoomPrice.room.roomNumber} • {editingRoomPrice.room.roomType}
+                </p>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                Admin Privilege
+              </span>
+            </div>
+
+            <form onSubmit={handleUpdateRoomPrice} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                  Monthly Rent Rate (BDT ৳)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">৳</span>
+                  <input
+                    type="number"
+                    min="500"
+                    step="50"
+                    required
+                    value={editingRoomPrice.newPrice}
+                    onChange={(e) => setEditingRoomPrice({ ...editingRoomPrice, newPrice: e.target.value })}
+                    className="w-full pl-8 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-[#060911] border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Enter monthly rent"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  This rate applies to all residents allocated to Room {editingRoomPrice.room.roomNumber}.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingRoomPrice(null)}
+                  disabled={isSavingPrice}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPrice}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-900/20 transition-all disabled:opacity-50"
+                >
+                  {isSavingPrice ? 'Saving...' : 'Save New Price'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

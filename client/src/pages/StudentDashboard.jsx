@@ -46,7 +46,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
   // Navigation Tabs (Persisted across page reloads)
   const [activeTab, setActiveTab] = useState(() => {
     try {
-      return localStorage.getItem('iubat_student_tab') || 'overview';
+      return localStorage.getItem('hostel_student_tab') || 'overview';
     } catch {
       return 'overview';
     }
@@ -54,7 +54,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
   useEffect(() => {
     try {
-      localStorage.setItem('iubat_student_tab', activeTab);
+      localStorage.setItem('hostel_student_tab', activeTab);
     } catch (e) {
       console.error(e);
     }
@@ -101,6 +101,35 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
   const [selectedMealTokenForQr, setSelectedMealTokenForQr] = useState(null);
   const [isGatePassQrModalOpen, setIsGatePassQrModalOpen] = useState(false);
   const [selectedGatePassForQr, setSelectedGatePassForQr] = useState(null);
+
+  // Live Inventory Rooms & Tariffs for accurate student rent calculation
+  const [allRooms, setAllRooms] = useState([]);
+
+  useEffect(() => {
+    const loadRooms = async () => {
+      try {
+        const res = await api.getRooms();
+        if (res?.data) {
+          setAllRooms(res.data);
+        }
+      } catch (e) {}
+    };
+    loadRooms();
+    window.addEventListener('hostel_tariffs_updated', loadRooms);
+    return () => window.removeEventListener('hostel_tariffs_updated', loadRooms);
+  }, []);
+
+  const studentRoomNum = (student.room || currentUser?.room || '').replace(/\D/g, '');
+  const allocatedRoomDoc = allRooms.find(r => 
+    (studentRoomNum && r.roomNumber === studentRoomNum) ||
+    r.beds?.some(b => b.studentId === student.id || b.studentId === currentUser?.userId)
+  );
+  const typeFallbackRoom = allRooms.find(r => 
+    student.roomType?.includes('Single') ? r.roomType?.includes('Single') :
+    (student.roomType?.includes('4-Bed') || student.roomType?.includes('Quad')) ? (r.roomType?.includes('4-Bed') || r.roomType?.includes('Quad')) :
+    r.roomType?.includes('Double')
+  );
+  const dynamicRoomMonthlyRent = allocatedRoomDoc?.monthlyRent || typeFallbackRoom?.monthlyRent || (student.roomType?.includes('Single') ? 5500 : student.roomType?.includes('4-Bed') ? 2500 : 3500);
 
   // Open Exact SSLCommerz Payment Gateway Interface (No auto-back, authentic checkout)
   const handlePayViaSSLCommerz = (inv) => {
@@ -387,21 +416,48 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
     },
   ]);
 
+  const [teacherIncidents, setTeacherIncidents] = useState([]);
+
   const fetchComplaints = async () => {
     try {
       const sId = currentUser?.userId || currentUser?.id || student.id;
       if (!sId) return;
       const res = await api.getComplaints({ studentId: sId });
       const list = res?.data || (Array.isArray(res) ? res : []);
-      if (Array.isArray(list) && list.length > 0) {
-        setComplaints(list.map(c => ({
+      if (Array.isArray(list)) {
+        // Separate maintenance complaints and teacher conduct complaints
+        const maint = list.filter(c => !c.isTeacherComplaint);
+        const incidents = list.filter(c => c.isTeacherComplaint);
+
+        setComplaints(maint.map(c => ({
           id: c.complaintId || c._id || `CMP-${c._id?.slice(-4)}`,
+          ticketId: c.ticketId || c.complaintId || c._id,
+          title: c.title,
           category: c.category || 'General',
-          urgency: c.priority || c.urgency || 'Medium',
+          priority: c.priority || c.urgency || 'Medium',
           description: c.description || c.title || 'Maintenance issue',
           status: c.status || 'Pending',
           reportedDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently',
-          assignedTechnician: c.assignedTo || 'Assigned to Maintenance Division',
+          assignedStaff: c.assignedStaff || c.assignedTo || 'Maintenance Division',
+          progressPercent: c.progressPercent || 0,
+          staffNotes: c.staffNotes || '',
+          estimatedCompletion: c.estimatedCompletion || '',
+          workStartedAt: c.workStartedAt || null,
+          hall: c.hall,
+          room: c.room,
+        })));
+
+        setTeacherIncidents(incidents.map(c => ({
+          id: c.ticketId || c._id,
+          title: c.title,
+          category: c.incidentType || c.category || 'Discipline',
+          severity: c.severity || 'Medium',
+          description: c.description,
+          reportedByName: c.reportedByName || 'Floor Teacher',
+          reportedByRole: c.reportedByRole || 'Floor House Tutor',
+          room: c.room,
+          date: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently',
+          status: c.status || 'Logged with Provost',
         })));
       }
     } catch (err) {
@@ -562,7 +618,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
             isGuardianGranted,
             isGuardianDeclined,
             approvedBy: p.approvedBy || (isApproved ? 'House Tutor / Provost' : ''),
-            gatePassCode: p.qrPassCode || `IUBAT-QR-${p.passId?.slice(-6) || '8832'}`,
+            gatePassCode: p.qrPassCode || `HSTL-QR-${p.passId?.slice(-6) || '8832'}`,
           };
         });
         setLeaveRequests(mapped);
@@ -763,7 +819,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
         <div>
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-              IUBAT Student Residential Workspace
+              Student Residential Workspace
             </span>
             <span className="ios-glass-pill text-[11px] font-bold px-3 py-0.5 rounded-full text-emerald-700 dark:text-emerald-300">
               {student.status}
@@ -790,7 +846,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
           <button
             onClick={onLogout}
-            className="ios-glass-pill ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white text-slate-700 dark:text-slate-300 transition-all cursor-pointer shadow-xs"
+            className="ios-tap-active flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-full bg-rose-50/80 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200/80 hover:border-rose-600 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white dark:border-rose-900/50 dark:hover:border-rose-600 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md hover:shadow-rose-600/20"
           >
             <LogOut size={14} />
             <span>Sign Out</span>
@@ -1693,6 +1749,40 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
             </button>
           </div>
 
+          {/* Floor Teacher Incident Notice (If any conduct/demerit recorded) */}
+          {teacherIncidents.length > 0 && (
+            <div className="p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold">⚠️</span>
+                  <div>
+                    <h3 className="font-bold text-rose-900 dark:text-rose-200 text-xs">
+                      Floor Teacher Conduct & Room Demerit Notices ({teacherIncidents.length})
+                    </h3>
+                    <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                      Observations recorded by your Floor House Tutor and forwarded to the Provost Office.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {teacherIncidents.map((inc) => (
+                  <div key={inc.id} className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-rose-200/60 dark:border-rose-900/30 text-xs space-y-1">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-rose-800 dark:text-rose-300">{inc.title || inc.category}</span>
+                      <span className="text-slate-400 font-mono">{inc.date}</span>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-300">{inc.description}</p>
+                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-rose-100 dark:border-rose-900/20">
+                      <span>Reported by: <strong>{inc.reportedByName}</strong> ({inc.reportedByRole})</span>
+                      <span className="font-mono text-rose-600 dark:text-rose-400 font-semibold">{inc.severity} Severity</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Category Filter Pills */}
           <div className="flex flex-wrap items-center gap-2 pb-2 text-xs font-semibold">
             {[
@@ -1796,6 +1886,40 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                         <div><strong>Location:</strong> {c.location || `${c.hall || student.hall} • ${c.room || student.room}`}</div>
                         <div><strong>Priority:</strong> <span className={`font-semibold ${c.priority === 'Critical' ? 'text-rose-600 dark:text-rose-400' : c.priority === 'Urgent' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'}`}>{c.priority || 'Normal'}</span></div>
                         <div><strong>Description:</strong> {c.description}</div>
+
+                        {/* Live Maintenance Work Progress Bar */}
+                        {(c.status?.includes('In Progress') || (c.progressPercent && c.progressPercent > 0) || c.status?.includes('Resolved')) && (
+                          <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 space-y-1.5 mt-2">
+                            <div className="flex items-center justify-between text-[11px] font-bold">
+                              <span className="text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                                <span className={`w-2 h-2 rounded-full ${c.progressPercent >= 100 ? 'bg-emerald-500' : 'bg-blue-500 animate-pulse'} inline-block`} />
+                                {c.progressPercent >= 100 ? 'Work Completed (100%)' : 'Crew Active Progress'}
+                              </span>
+                              <span className="font-mono text-blue-600 dark:text-blue-400 font-bold">{c.progressPercent || 0}%</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-blue-200/50 dark:bg-blue-900/60 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  c.progressPercent >= 100
+                                    ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                                    : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                                }`}
+                                style={{ width: `${Math.min(100, Math.max(0, c.progressPercent || 0))}%` }}
+                              />
+                            </div>
+                            {c.staffNotes && (
+                              <p className="text-[10px] text-blue-800 dark:text-blue-200 italic mt-1 font-medium">
+                                Maintenance Staff Note: "{c.staffNotes}"
+                              </p>
+                            )}
+                            {c.estimatedCompletion && (
+                              <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                                Est. Completion: <strong>{c.estimatedCompletion}</strong>
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         {c.assignedStaff && !c.assignedStaff.includes('Pending') && (
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
                             ✓ Assigned Staff: {c.assignedStaff}
@@ -2372,7 +2496,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                 {student.roomType}
               </div>
               <div className="text-[11px] text-slate-500">
-                ৳2,200/mo (Base Rent + Wi-Fi + Utility)
+                ৳{Number(dynamicRoomMonthlyRent || 3500).toLocaleString()}/mo (Base Rent + Wi-Fi + Utility)
               </div>
             </div>
 
@@ -2392,7 +2516,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
             </div>
           </div>
 
-          {/* Official IUBAT Hostel Payment Policy & Financial Rules Notice */}
+          {/* Official Hostel Payment Policy & Financial Rules Notice */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-[#0c1527] text-white border border-slate-700/80 shadow-md space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -2400,7 +2524,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
                   <Clock size={16} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-white">Official IUBAT Hostel Payment Rules & Policy</h4>
+                  <h4 className="font-bold text-sm text-white">Official Hostel Payment Rules & Policy</h4>
                   <p className="text-[11px] text-slate-400">Institutional financial compliance mandated by Provost Desk</p>
                 </div>
               </div>
@@ -2447,7 +2571,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
               const isRentCleared = !dueRent;
               const currentDay = new Date().getDate();
               const isPast5th = currentDay > 5;
-              const baseRent = 2200;
+              const baseRent = dynamicRoomMonthlyRent;
               const lateFine = isPast5th ? Math.round(baseRent * 0.10) : 0;
               const payableRent = dueRent ? dueRent.amountBDT : (baseRent + lateFine);
 
@@ -2587,7 +2711,7 @@ export default function StudentDashboard({ currentUser, onLogout, onShowToast, o
 
             const currentDay = new Date().getDate();
             const isPast5th = currentDay > 5;
-            const rentAmount = dueRent ? dueRent.amountBDT : (isPast5th ? 2420 : 2200);
+            const rentAmount = dueRent ? dueRent.amountBDT : (isPast5th ? Math.round(dynamicRoomMonthlyRent * 1.1) : dynamicRoomMonthlyRent);
             const mealAmount = dueMeal ? dueMeal.amountBDT : 0;
             const combinedTotal = (dueRent ? rentAmount : 0) + mealAmount;
 

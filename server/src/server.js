@@ -50,7 +50,7 @@ app.use('/api/bazar', require('./routes/bazarRoutes'));
 // API Directory Endpoint
 const apiDirectoryHandler = (req, res) => {
   res.json({
-    name: 'IUBAT Smart Hall & Residential Management System API',
+    name: 'Hostel Seat Allocation Management System API',
     version: '1.0.0',
     status: 'online',
     database: 'MongoDB Connected',

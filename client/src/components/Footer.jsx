@@ -16,7 +16,7 @@ export default function Footer() {
               </div>
               <div>
                 <span className="text-sm font-extrabold text-slate-900 dark:text-white block">
-                  IUBAT Hostel Seat Management System
+                  Hostel Seat Allocation Management System
                 </span>
                 <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
                   Residential Services & Seat Allocation
@@ -24,7 +24,7 @@ export default function Footer() {
               </div>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              International University of Business Agriculture and Technology residential hall administration, AI roommate pairing, and multi-tier governance platform.
+              Comprehensive residential hall administration, room seat allocation, AI roommate pairing, and multi-tier governance platform.
             </p>
             <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
@@ -74,7 +74,7 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Mail size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>provost@iubat.edu</span>
+                <span>provost@hostel.edu</span>
               </li>
             </ul>
           </div>
@@ -83,7 +83,7 @@ export default function Footer() {
 
         {/* Bottom Metadata */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
-          <p>© 2026 IUBAT Hostel Seat Management System. All rights reserved.</p>
+          <p>© 2026 Hostel Seat Allocation Management System. All rights reserved.</p>
           <div className="flex items-center gap-3">
             <span className="font-mono">MERN Stack Enterprise Architecture</span>
             <span>•</span>
